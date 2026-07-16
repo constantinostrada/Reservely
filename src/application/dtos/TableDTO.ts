@@ -1,5 +1,4 @@
 export interface CreateTableDTO {
-  restaurantId: string;
   tableNumber: number;
   capacity: number;
   location?: string;

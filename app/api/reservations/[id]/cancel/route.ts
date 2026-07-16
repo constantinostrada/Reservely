@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { ReservationController } from '@/src/interfaces/http/controllers/ReservationController';
 import { handleError } from '@/src/interfaces/http/utils/errorHandler';
+import { withAuth } from '@/src/interfaces/http/middleware/auth';
 
 const controller = new ReservationController();
 
@@ -10,14 +11,13 @@ interface RouteParams {
   };
 }
 
-export async function POST(
-  _request: NextRequest,
-  { params }: RouteParams
-): Promise<NextResponse> {
-  try {
-    const result = await controller.cancel(params.id);
-    return NextResponse.json(result);
-  } catch (error) {
-    return handleError(error);
+export const POST = withAuth<RouteParams>(
+  async (_request, auth, { params }): Promise<NextResponse> => {
+    try {
+      const result = await controller.cancel(params.id, auth);
+      return NextResponse.json(result);
+    } catch (error) {
+      return handleError(error);
+    }
   }
-}
+);

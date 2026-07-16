@@ -7,6 +7,7 @@ import { IReservationRepository } from '@domain/repositories/IReservationReposit
 import { Reservation } from '@domain/entities/Reservation';
 import { Email } from '@domain/value-objects/Email';
 import { ReservationStatus } from '@domain/value-objects/ReservationStatus';
+import { withTenant } from './tenantScope';
 
 export class PrismaReservationRepository implements IReservationRepository {
   constructor(private readonly prisma: PrismaClient) {}
@@ -43,7 +44,7 @@ export class PrismaReservationRepository implements IReservationRepository {
     email: string
   ): Promise<Reservation[]> {
     const reservations = await this.prisma.reservation.findMany({
-      where: { restaurantId, guestEmail: email },
+      where: withTenant(restaurantId, { guestEmail: email }),
       orderBy: { startsAt: 'desc' },
     });
 
@@ -58,21 +59,21 @@ export class PrismaReservationRepository implements IReservationRepository {
     endOfDay.setHours(23, 59, 59, 999);
 
     const reservations = await this.prisma.reservation.findMany({
-      where: {
-        restaurantId,
+      where: withTenant(restaurantId, {
         startsAt: {
           gte: startOfDay,
           lte: endOfDay,
         },
-      },
+      }),
       orderBy: { startsAt: 'asc' },
     });
 
     return reservations.map((r) => this.toDomain(r));
   }
 
-  async findAll(): Promise<Reservation[]> {
+  async findAll(restaurantId: string): Promise<Reservation[]> {
     const reservations = await this.prisma.reservation.findMany({
+      where: withTenant(restaurantId),
       orderBy: { createdAt: 'desc' },
     });
 
@@ -97,9 +98,11 @@ export class PrismaReservationRepository implements IReservationRepository {
     return this.toDomain(updated);
   }
 
-  async delete(id: string): Promise<void> {
-    await this.prisma.reservation.delete({
-      where: { id },
+  async delete(restaurantId: string, id: string): Promise<void> {
+    // deleteMany so the tenant filter applies; delete() only accepts the
+    // unique id and could remove another restaurant's row
+    await this.prisma.reservation.deleteMany({
+      where: withTenant(restaurantId, { id }),
     });
   }
 

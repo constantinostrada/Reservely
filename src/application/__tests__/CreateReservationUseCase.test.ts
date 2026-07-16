@@ -1,4 +1,5 @@
 import { CreateReservationUseCase } from '../use-cases/CreateReservationUseCase';
+import { TenantContext } from '../common/TenantContext';
 import { IReservationRepository } from '@domain/repositories/IReservationRepository';
 import { ITableRepository } from '@domain/repositories/ITableRepository';
 import { ReservationDomainService } from '@domain/services/ReservationDomainService';
@@ -13,6 +14,12 @@ describe('CreateReservationUseCase', () => {
   let mockReservationRepo: jest.Mocked<IReservationRepository>;
   let mockTableRepo: jest.Mocked<ITableRepository>;
   let domainService: ReservationDomainService;
+
+  const tenant: TenantContext = {
+    userId: 'user-1',
+    restaurantId: 'rest-1',
+    role: 'owner',
+  };
 
   beforeEach(() => {
     mockReservationRepo = {
@@ -47,7 +54,6 @@ describe('CreateReservationUseCase', () => {
 
   describe('execute', () => {
     const validDto = {
-      restaurantId: 'rest-1',
       guestName: 'John Doe',
       guestEmail: 'john@example.com',
       guestPhone: '+1234567890',
@@ -70,7 +76,7 @@ describe('CreateReservationUseCase', () => {
 
       const mockSavedReservation = new Reservation({
         id: 'test-id',
-        restaurantId: validDto.restaurantId,
+        restaurantId: tenant.restaurantId,
         guestName: validDto.guestName,
         guestEmail: new Email(validDto.guestEmail),
         guestPhone: validDto.guestPhone,
@@ -83,13 +89,34 @@ describe('CreateReservationUseCase', () => {
 
       mockReservationRepo.save.mockResolvedValue(mockSavedReservation);
 
-      const result = await useCase.execute(validDto);
+      const result = await useCase.execute(validDto, tenant);
 
       expect(result.guestName).toBe(validDto.guestName);
       expect(result.guestEmail).toBe(validDto.guestEmail);
       expect(result.status).toBe('pending');
-      expect(mockTableRepo.findAvailableTables).toHaveBeenCalled();
+      expect(mockTableRepo.findAvailableTables).toHaveBeenCalledWith(
+        tenant.restaurantId
+      );
       expect(mockReservationRepo.save).toHaveBeenCalled();
+    });
+
+    it('should scope the new reservation to the authenticated tenant', async () => {
+      const mockTable = new Table({
+        restaurantId: 'rest-1',
+        tableNumber: 1,
+        capacity: 4,
+        status: TableStatus.available(),
+      });
+
+      mockTableRepo.findAvailableTables.mockResolvedValue([mockTable]);
+      mockReservationRepo.findByDate.mockResolvedValue([]);
+      mockReservationRepo.save.mockImplementation(async (r) => r);
+
+      const result = await useCase.execute(validDto, tenant);
+
+      expect(result.restaurantId).toBe(tenant.restaurantId);
+      const savedEntity = mockReservationRepo.save.mock.calls[0][0];
+      expect(savedEntity.restaurantId).toBe(tenant.restaurantId);
     });
 
     it('should throw error if time is outside operating hours', async () => {
@@ -98,7 +125,7 @@ describe('CreateReservationUseCase', () => {
         time: '23:00', // Outside operating hours
       };
 
-      await expect(useCase.execute(invalidDto)).rejects.toThrow(
+      await expect(useCase.execute(invalidDto, tenant)).rejects.toThrow(
         'outside of restaurant operating hours'
       );
     });
@@ -106,7 +133,7 @@ describe('CreateReservationUseCase', () => {
     it('should throw error if no tables available', async () => {
       mockTableRepo.findAvailableTables.mockResolvedValue([]);
 
-      await expect(useCase.execute(validDto)).rejects.toThrow(
+      await expect(useCase.execute(validDto, tenant)).rejects.toThrow(
         'No tables available'
       );
     });
@@ -132,7 +159,7 @@ describe('CreateReservationUseCase', () => {
       mockTableRepo.findAvailableTables.mockResolvedValue([mockTable]);
       mockReservationRepo.findByDate.mockResolvedValue([existingReservation]);
 
-      await expect(useCase.execute(validDto)).rejects.toThrow(
+      await expect(useCase.execute(validDto, tenant)).rejects.toThrow(
         'conflicts with an existing reservation'
       );
     });

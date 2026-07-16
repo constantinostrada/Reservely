@@ -6,6 +6,7 @@ import {
 import { ITableRepository } from '@domain/repositories/ITableRepository';
 import { Table } from '@domain/entities/Table';
 import { TableStatus } from '@domain/value-objects/TableStatus';
+import { withTenant } from './tenantScope';
 
 export class PrismaTableRepository implements ITableRepository {
   constructor(private readonly prisma: PrismaClient) {}
@@ -49,7 +50,7 @@ export class PrismaTableRepository implements ITableRepository {
 
   async findAvailableTables(restaurantId: string): Promise<Table[]> {
     const tables = await this.prisma.table.findMany({
-      where: { restaurantId, status: 'AVAILABLE' },
+      where: withTenant(restaurantId, { status: 'AVAILABLE' as const }),
       orderBy: { capacity: 'asc' },
     });
 
@@ -61,21 +62,21 @@ export class PrismaTableRepository implements ITableRepository {
     minCapacity: number
   ): Promise<Table[]> {
     const tables = await this.prisma.table.findMany({
-      where: {
-        restaurantId,
+      where: withTenant(restaurantId, {
         capacity: {
           gte: minCapacity,
         },
-        status: 'AVAILABLE',
-      },
+        status: 'AVAILABLE' as const,
+      }),
       orderBy: { capacity: 'asc' },
     });
 
     return tables.map((t) => this.toDomain(t));
   }
 
-  async findAll(): Promise<Table[]> {
+  async findAll(restaurantId: string): Promise<Table[]> {
     const tables = await this.prisma.table.findMany({
+      where: withTenant(restaurantId),
       orderBy: { number: 'asc' },
     });
 
@@ -97,9 +98,11 @@ export class PrismaTableRepository implements ITableRepository {
     return this.toDomain(updated);
   }
 
-  async delete(id: string): Promise<void> {
-    await this.prisma.table.delete({
-      where: { id },
+  async delete(restaurantId: string, id: string): Promise<void> {
+    // deleteMany so the tenant filter applies; delete() only accepts the
+    // unique id and could remove another restaurant's row
+    await this.prisma.table.deleteMany({
+      where: withTenant(restaurantId, { id }),
     });
   }
 

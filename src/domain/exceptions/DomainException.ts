@@ -29,3 +29,19 @@ export class ValidationException extends DomainException {
     Object.setPrototypeOf(this, ValidationException.prototype);
   }
 }
+
+export class UnauthorizedException extends DomainException {
+  constructor(message: string = 'Authentication required') {
+    super(message);
+    this.name = 'UnauthorizedException';
+    Object.setPrototypeOf(this, UnauthorizedException.prototype);
+  }
+}
+
+export class ForbiddenException extends DomainException {
+  constructor(message: string = 'Access to this resource is forbidden') {
+    super(message);
+    this.name = 'ForbiddenException';
+    Object.setPrototypeOf(this, ForbiddenException.prototype);
+  }
+}

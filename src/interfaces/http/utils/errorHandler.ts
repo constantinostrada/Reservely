@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import {
   DomainException,
   EntityNotFoundException,
+  ForbiddenException,
+  UnauthorizedException,
   ValidationException,
 } from '@domain/exceptions/DomainException';
 import { ZodError } from 'zod';
@@ -29,6 +31,28 @@ export function handleError(error: unknown): NextResponse {
         message: error.message,
       },
       { status: 400 }
+    );
+  }
+
+  // Not authenticated
+  if (error instanceof UnauthorizedException) {
+    return NextResponse.json(
+      {
+        error: 'Unauthorized',
+        message: error.message,
+      },
+      { status: 401 }
+    );
+  }
+
+  // Authenticated but not allowed (e.g. cross-tenant access)
+  if (error instanceof ForbiddenException) {
+    return NextResponse.json(
+      {
+        error: 'Forbidden',
+        message: error.message,
+      },
+      { status: 403 }
     );
   }
 

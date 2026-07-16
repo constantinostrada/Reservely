@@ -1,6 +1,7 @@
 import { IReservationRepository } from '@domain/repositories/IReservationRepository';
 import { ITableRepository } from '@domain/repositories/ITableRepository';
 import { ReservationDomainService } from '@domain/services/ReservationDomainService';
+import { TenantContext } from '../common/TenantContext';
 import { CreateReservationDTO, ReservationDTO } from '../dtos/ReservationDTO';
 import { ReservationMapper } from '../mappers/ReservationMapper';
 
@@ -11,9 +12,13 @@ export class CreateReservationUseCase {
     private readonly domainService: ReservationDomainService
   ) {}
 
-  async execute(dto: CreateReservationDTO): Promise<ReservationDTO> {
-    // Map DTO to domain entity
-    const reservation = ReservationMapper.toDomain(dto);
+  async execute(
+    dto: CreateReservationDTO,
+    context: TenantContext
+  ): Promise<ReservationDTO> {
+    // Map DTO to domain entity; the restaurant always comes from the
+    // authenticated tenant, never from client input
+    const reservation = ReservationMapper.toDomain(dto, context.restaurantId);
 
     // Validate reservation time slot
     if (!this.domainService.isReservationInValidTimeSlot(reservation)) {

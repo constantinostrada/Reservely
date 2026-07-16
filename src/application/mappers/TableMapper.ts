@@ -16,9 +16,9 @@ export class TableMapper {
     };
   }
 
-  static toDomain(dto: CreateTableDTO): Table {
+  static toDomain(dto: CreateTableDTO, restaurantId: string): Table {
     return new Table({
-      restaurantId: dto.restaurantId,
+      restaurantId,
       tableNumber: dto.tableNumber,
       capacity: dto.capacity,
       location: dto.location,

@@ -1,4 +1,5 @@
 import { IReservationRepository } from '@domain/repositories/IReservationRepository';
+import { TenantContext } from '../common/TenantContext';
 import { ReservationListDTO } from '../dtos/ReservationDTO';
 import { ReservationMapper } from '../mappers/ReservationMapper';
 
@@ -7,8 +8,10 @@ export class ListReservationsUseCase {
     private readonly reservationRepository: IReservationRepository
   ) {}
 
-  async execute(): Promise<ReservationListDTO> {
-    const reservations = await this.reservationRepository.findAll();
+  async execute(context: TenantContext): Promise<ReservationListDTO> {
+    const reservations = await this.reservationRepository.findAll(
+      context.restaurantId
+    );
 
     return {
       reservations: ReservationMapper.toDTOList(reservations),

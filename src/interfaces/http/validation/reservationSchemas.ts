@@ -1,7 +1,6 @@
 import { z } from 'zod';
 
 export const createReservationSchema = z.object({
-  restaurantId: z.string().min(1, 'Restaurant id is required'),
   guestName: z
     .string()
     .min(1, 'Guest name is required')

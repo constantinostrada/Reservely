@@ -21,9 +21,12 @@ export class ReservationMapper {
     };
   }
 
-  static toDomain(dto: CreateReservationDTO): Reservation {
+  static toDomain(
+    dto: CreateReservationDTO,
+    restaurantId: string
+  ): Reservation {
     return new Reservation({
-      restaurantId: dto.restaurantId,
+      restaurantId,
       guestName: dto.guestName,
       guestEmail: new Email(dto.guestEmail),
       guestPhone: dto.guestPhone,

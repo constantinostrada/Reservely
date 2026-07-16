@@ -1,8 +1,15 @@
 import { PrismaClient } from '@prisma/client';
+import { ScryptPasswordHasher } from '../src/infrastructure/auth/ScryptPasswordHasher';
 
 const prisma = new PrismaClient();
+const passwordHasher = new ScryptPasswordHasher();
+
+// Local/dev credentials only. Every seeded user logs in with this password.
+const SEED_PASSWORD = 'password123';
 
 async function main() {
+  const passwordHash = await passwordHasher.hash(SEED_PASSWORD);
+
   // Idempotent seed: wipe tenant data and recreate it.
   await prisma.restaurant.deleteMany();
 
@@ -20,11 +27,13 @@ async function main() {
             email: 'owner@trattoria-bella.example',
             name: 'Giulia Rossi',
             role: 'OWNER',
+            passwordHash,
           },
           {
             email: 'staff@trattoria-bella.example',
             name: 'Marco Bianchi',
             role: 'STAFF',
+            passwordHash,
           },
         ],
       },
@@ -85,6 +94,7 @@ async function main() {
             email: 'owner@harbor-diner.example',
             name: 'Sam Carter',
             role: 'OWNER',
+            passwordHash,
           },
         ],
       },
