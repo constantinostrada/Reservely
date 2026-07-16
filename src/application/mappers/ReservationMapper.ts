@@ -8,11 +8,12 @@ export class ReservationMapper {
     return {
       id: reservation.id,
       restaurantId: reservation.restaurantId,
+      tableId: reservation.tableId,
       guestName: reservation.guestName,
       guestEmail: reservation.guestEmail.value,
       guestPhone: reservation.guestPhone,
-      date: reservation.date.toISOString(),
-      time: reservation.time,
+      startsAt: reservation.startsAt.toISOString(),
+      endsAt: reservation.endsAt.toISOString(),
       partySize: reservation.partySize,
       status: reservation.status.value,
       notes: reservation.notes,
@@ -21,17 +22,25 @@ export class ReservationMapper {
     };
   }
 
+  /**
+   * The UTC instants are computed by the use case from the DTO's local
+   * date/time using the restaurant's time zone — never here.
+   */
   static toDomain(
     dto: CreateReservationDTO,
-    restaurantId: string
+    restaurantId: string,
+    tableId: string,
+    startsAt: Date,
+    endsAt: Date
   ): Reservation {
     return new Reservation({
       restaurantId,
+      tableId,
       guestName: dto.guestName,
       guestEmail: new Email(dto.guestEmail),
       guestPhone: dto.guestPhone,
-      date: new Date(dto.date),
-      time: dto.time,
+      startsAt,
+      endsAt,
       partySize: dto.partySize,
       status: ReservationStatus.pending(),
       notes: dto.notes,

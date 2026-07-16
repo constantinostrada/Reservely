@@ -1,4 +1,10 @@
-type ReservationStatusValue = 'pending' | 'confirmed' | 'cancelled' | 'completed';
+type ReservationStatusValue =
+  | 'pending'
+  | 'confirmed'
+  | 'seated'
+  | 'cancelled'
+  | 'completed'
+  | 'no_show';
 
 export class ReservationStatus {
   private readonly _value: ReservationStatusValue;
@@ -13,6 +19,14 @@ export class ReservationStatus {
 
   static confirmed(): ReservationStatus {
     return new ReservationStatus('confirmed');
+  }
+
+  static seated(): ReservationStatus {
+    return new ReservationStatus('seated');
+  }
+
+  static noShow(): ReservationStatus {
+    return new ReservationStatus('no_show');
   }
 
   static cancelled(): ReservationStatus {
@@ -30,10 +44,14 @@ export class ReservationStatus {
         return ReservationStatus.pending();
       case 'confirmed':
         return ReservationStatus.confirmed();
+      case 'seated':
+        return ReservationStatus.seated();
       case 'cancelled':
         return ReservationStatus.cancelled();
       case 'completed':
         return ReservationStatus.completed();
+      case 'no_show':
+        return ReservationStatus.noShow();
       default:
         throw new Error(`Invalid reservation status: ${value}`);
     }
@@ -57,6 +75,18 @@ export class ReservationStatus {
 
   public isCompleted(): boolean {
     return this._value === 'completed';
+  }
+
+  /**
+   * Whether a reservation in this status keeps its table's slot occupied.
+   * Cancelled, completed and no-show reservations release the slot.
+   */
+  public blocksTable(): boolean {
+    return (
+      this._value === 'pending' ||
+      this._value === 'confirmed' ||
+      this._value === 'seated'
+    );
   }
 
   public equals(other: ReservationStatus): boolean {

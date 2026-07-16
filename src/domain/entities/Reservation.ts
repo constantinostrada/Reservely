@@ -1,14 +1,21 @@
 import { ReservationStatus } from '../value-objects/ReservationStatus';
 import { Email } from '../value-objects/Email';
+import { TimeSlot } from '../value-objects/TimeSlot';
+
+export const DEFAULT_RESERVATION_DURATION_MINUTES = 90;
 
 export interface ReservationProps {
   id?: string;
   restaurantId: string;
+  /** The table this reservation holds; unassigned for legacy rows only. */
+  tableId?: string;
   guestName: string;
   guestEmail: Email;
   guestPhone?: string;
-  date: Date;
-  time: string;
+  /** UTC instant. Local wall-clock times are converted before reaching here. */
+  startsAt: Date;
+  /** UTC instant; defaults to startsAt + the standard 90-minute duration. */
+  endsAt?: Date;
   partySize: number;
   status: ReservationStatus;
   notes?: string;
@@ -18,12 +25,21 @@ export interface ReservationProps {
 
 export class Reservation {
   private readonly props: ReservationProps;
+  private readonly _slot: TimeSlot;
 
   constructor(props: ReservationProps) {
     this.validateProps(props);
+    // TimeSlot enforces valid dates and end > start
+    this._slot = props.endsAt
+      ? new TimeSlot(props.startsAt, props.endsAt)
+      : TimeSlot.fromDuration(
+          props.startsAt,
+          DEFAULT_RESERVATION_DURATION_MINUTES
+        );
     this.props = {
       ...props,
       id: props.id || this.generateId(),
+      endsAt: this._slot.end,
       createdAt: props.createdAt || new Date(),
       updatedAt: props.updatedAt || new Date(),
     };
@@ -50,22 +66,13 @@ export class Reservation {
       throw new Error('Party size cannot exceed 50');
     }
 
-    if (!props.date) {
-      throw new Error('Reservation date is required');
-    }
-
-    if (!props.time || !this.isValidTime(props.time)) {
-      throw new Error('Valid reservation time is required (HH:MM format)');
+    if (!props.startsAt || isNaN(props.startsAt.getTime())) {
+      throw new Error('Reservation start time is required');
     }
 
     if (props.guestPhone && props.guestPhone.length > 20) {
       throw new Error('Phone number must not exceed 20 characters');
     }
-  }
-
-  private isValidTime(time: string): boolean {
-    const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
-    return timeRegex.test(time);
   }
 
   private generateId(): string {
@@ -81,6 +88,10 @@ export class Reservation {
     return this.props.restaurantId;
   }
 
+  get tableId(): string | undefined {
+    return this.props.tableId;
+  }
+
   get guestName(): string {
     return this.props.guestName;
   }
@@ -93,12 +104,16 @@ export class Reservation {
     return this.props.guestPhone;
   }
 
-  get date(): Date {
-    return this.props.date;
+  get startsAt(): Date {
+    return this._slot.start;
   }
 
-  get time(): string {
-    return this.props.time;
+  get endsAt(): Date {
+    return this._slot.end;
+  }
+
+  get slot(): TimeSlot {
+    return this._slot;
   }
 
   get partySize(): number {
@@ -154,10 +169,17 @@ export class Reservation {
     this.props.updatedAt = new Date();
   }
 
+  /** Whether this reservation currently occupies its table's slot. */
+  public blocksTable(): boolean {
+    return this.props.status.blocksTable();
+  }
+
+  public conflictsWith(slot: TimeSlot): boolean {
+    return this.blocksTable() && this._slot.overlaps(slot);
+  }
+
   public isPastDate(): boolean {
-    const reservationDateTime = new Date(this.props.date);
-    const now = new Date();
-    return reservationDateTime < now;
+    return this._slot.start.getTime() < Date.now();
   }
 
   public canBeModified(): boolean {

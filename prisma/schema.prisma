@@ -172,6 +172,7 @@ model Reservation {
   @@index([restaurantId, startsAt])
   @@index([restaurantId, status])
   @@index([restaurantId, guestEmail])
+  @@index([tableId, startsAt])
   @@map("reservations")
 }
 

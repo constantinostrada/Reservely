@@ -1,12 +1,21 @@
 import {
+  Prisma,
   PrismaClient,
   Reservation as PrismaReservation,
   ReservationStatus as PrismaReservationStatus,
 } from '@prisma/client';
 import { IReservationRepository } from '@domain/repositories/IReservationRepository';
-import { Reservation } from '@domain/entities/Reservation';
+import {
+  DEFAULT_RESERVATION_DURATION_MINUTES,
+  Reservation,
+} from '@domain/entities/Reservation';
 import { Email } from '@domain/value-objects/Email';
 import { ReservationStatus } from '@domain/value-objects/ReservationStatus';
+import {
+  ConflictException,
+  EntityNotFoundException,
+  ValidationException,
+} from '@domain/exceptions/DomainException';
 import { withTenant } from './tenantScope';
 
 export class PrismaReservationRepository implements IReservationRepository {
@@ -14,20 +23,61 @@ export class PrismaReservationRepository implements IReservationRepository {
 
   async save(reservation: Reservation): Promise<Reservation> {
     const created = await this.prisma.reservation.create({
-      data: {
-        id: reservation.id,
-        restaurantId: reservation.restaurantId,
-        guestName: reservation.guestName,
-        guestEmail: reservation.guestEmail.value,
-        guestPhone: reservation.guestPhone || null,
-        startsAt: this.toStartsAt(reservation.date, reservation.time),
-        partySize: reservation.partySize,
-        status: this.toPersistenceStatus(reservation.status),
-        notes: reservation.notes || null,
-        createdAt: reservation.createdAt,
-        updatedAt: reservation.updatedAt,
-      },
+      data: this.toCreateData(reservation),
     });
+    return this.toDomain(created);
+  }
+
+  /**
+   * Concurrency-safe slot hold. Inside one transaction:
+   *  1. lock the table row (SELECT ... FOR UPDATE) so concurrent holds on
+   *     the same table serialize — the second waits for the first to commit;
+   *  2. re-check for overlapping slot-blocking reservations;
+   *  3. insert.
+   * The loser of a race therefore always sees the winner's row in step 2
+   * and gets a ConflictException — double-booking is impossible.
+   */
+  async createWithSlotHold(reservation: Reservation): Promise<Reservation> {
+    const tableId = reservation.tableId;
+    if (!tableId) {
+      throw new ValidationException(
+        'A reservation must be assigned to a table to hold a slot'
+      );
+    }
+
+    const created = await this.prisma.$transaction(async (tx) => {
+      const lockedTable = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT id FROM tables
+        WHERE id = ${tableId} AND restaurant_id = ${reservation.restaurantId}
+        FOR UPDATE
+      `;
+      if (lockedTable.length === 0) {
+        throw new EntityNotFoundException('Table', tableId);
+      }
+
+      // Half-open overlap check; legacy rows without ends_at are assumed to
+      // last the standard duration.
+      const conflicts = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT id FROM reservations
+        WHERE table_id = ${tableId}
+          AND status::text IN ('PENDING', 'CONFIRMED', 'SEATED')
+          AND starts_at < ${reservation.endsAt}
+          AND COALESCE(
+                ends_at,
+                starts_at
+                  + ${DEFAULT_RESERVATION_DURATION_MINUTES} * interval '1 minute'
+              ) > ${reservation.startsAt}
+        LIMIT 1
+      `;
+      if (conflicts.length > 0) {
+        throw new ConflictException(
+          'This table is already reserved for the requested time slot'
+        );
+      }
+
+      return tx.reservation.create({ data: this.toCreateData(reservation) });
+    });
+
     return this.toDomain(created);
   }
 
@@ -51,19 +101,25 @@ export class PrismaReservationRepository implements IReservationRepository {
     return reservations.map((r) => this.toDomain(r));
   }
 
-  async findByDate(restaurantId: string, date: Date): Promise<Reservation[]> {
-    const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
-
-    const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
-
+  async findOverlapping(
+    restaurantId: string,
+    rangeStart: Date,
+    rangeEnd: Date
+  ): Promise<Reservation[]> {
+    // A reservation intersects the range when it starts before the range
+    // ends and ends after the range starts. Rows without ends_at are given
+    // the standard duration, so compare starts_at against a widened bound.
+    const defaultDurationMs = DEFAULT_RESERVATION_DURATION_MINUTES * 60_000;
     const reservations = await this.prisma.reservation.findMany({
       where: withTenant(restaurantId, {
-        startsAt: {
-          gte: startOfDay,
-          lte: endOfDay,
-        },
+        startsAt: { lt: rangeEnd },
+        OR: [
+          { endsAt: { gt: rangeStart } },
+          {
+            endsAt: null,
+            startsAt: { gt: new Date(rangeStart.getTime() - defaultDurationMs) },
+          },
+        ],
       }),
       orderBy: { startsAt: 'asc' },
     });
@@ -84,10 +140,12 @@ export class PrismaReservationRepository implements IReservationRepository {
     const updated = await this.prisma.reservation.update({
       where: { id: reservation.id },
       data: {
+        tableId: reservation.tableId || null,
         guestName: reservation.guestName,
         guestEmail: reservation.guestEmail.value,
         guestPhone: reservation.guestPhone || null,
-        startsAt: this.toStartsAt(reservation.date, reservation.time),
+        startsAt: reservation.startsAt,
+        endsAt: reservation.endsAt,
         partySize: reservation.partySize,
         status: this.toPersistenceStatus(reservation.status),
         notes: reservation.notes || null,
@@ -106,11 +164,24 @@ export class PrismaReservationRepository implements IReservationRepository {
     });
   }
 
-  private toStartsAt(date: Date, time: string): Date {
-    const [hours, minutes] = time.split(':').map(Number);
-    const startsAt = new Date(date);
-    startsAt.setHours(hours, minutes, 0, 0);
-    return startsAt;
+  private toCreateData(
+    reservation: Reservation
+  ): Prisma.ReservationUncheckedCreateInput {
+    return {
+      id: reservation.id,
+      restaurantId: reservation.restaurantId,
+      tableId: reservation.tableId || null,
+      guestName: reservation.guestName,
+      guestEmail: reservation.guestEmail.value,
+      guestPhone: reservation.guestPhone || null,
+      startsAt: reservation.startsAt,
+      endsAt: reservation.endsAt,
+      partySize: reservation.partySize,
+      status: this.toPersistenceStatus(reservation.status),
+      notes: reservation.notes || null,
+      createdAt: reservation.createdAt,
+      updatedAt: reservation.updatedAt,
+    };
   }
 
   private toPersistenceStatus(
@@ -120,17 +191,15 @@ export class PrismaReservationRepository implements IReservationRepository {
   }
 
   private toDomain(data: PrismaReservation): Reservation {
-    const hours = String(data.startsAt.getHours()).padStart(2, '0');
-    const minutes = String(data.startsAt.getMinutes()).padStart(2, '0');
-
     return new Reservation({
       id: data.id,
       restaurantId: data.restaurantId,
+      tableId: data.tableId || undefined,
       guestName: data.guestName,
       guestEmail: new Email(data.guestEmail),
       guestPhone: data.guestPhone || undefined,
-      date: data.startsAt,
-      time: `${hours}:${minutes}`,
+      startsAt: data.startsAt,
+      endsAt: data.endsAt || undefined,
       partySize: data.partySize,
       status: ReservationStatus.fromString(data.status),
       notes: data.notes || undefined,

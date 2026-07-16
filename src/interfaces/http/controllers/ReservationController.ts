@@ -1,10 +1,16 @@
 import { container } from '@infrastructure/di/container';
 import { CreateReservationDTO } from '@application/dtos/ReservationDTO';
+import { GetAvailabilityDTO } from '@application/dtos/AvailabilityDTO';
 import { TenantContext } from '@application/common/TenantContext';
 
 export class ReservationController {
   async create(dto: CreateReservationDTO, auth: TenantContext) {
     const useCase = container.getCreateReservationUseCase();
+    return await useCase.execute(dto, auth);
+  }
+
+  async availability(dto: GetAvailabilityDTO, auth: TenantContext) {
+    const useCase = container.getGetAvailabilityUseCase();
     return await useCase.execute(dto, auth);
   }
 

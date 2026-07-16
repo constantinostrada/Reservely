@@ -37,10 +37,10 @@ describe('tenant scoping', () => {
       new Reservation({
         id: 'res-1',
         restaurantId,
+        tableId: 'table-1',
         guestName: 'John Doe',
         guestEmail: new Email('john@example.com'),
-        date: new Date('2024-12-25T00:00:00.000Z'),
-        time: '18:30',
+        startsAt: new Date('2026-12-25T23:30:00.000Z'),
         partySize: 4,
         status: ReservationStatus.pending(),
       });
@@ -48,9 +48,10 @@ describe('tenant scoping', () => {
     beforeEach(() => {
       mockReservationRepo = {
         save: jest.fn(),
+        createWithSlotHold: jest.fn(),
         findById: jest.fn(),
         findByEmail: jest.fn(),
-        findByDate: jest.fn(),
+        findOverlapping: jest.fn(),
         findAll: jest.fn(),
         update: jest.fn(),
         delete: jest.fn(),

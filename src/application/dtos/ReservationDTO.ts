@@ -2,9 +2,13 @@ export interface CreateReservationDTO {
   guestName: string;
   guestEmail: string;
   guestPhone?: string;
-  date: string; // ISO date string
-  time: string; // HH:MM format
+  /** Calendar date in the restaurant's local time zone, YYYY-MM-DD */
+  date: string;
+  /** Local wall-clock time in the restaurant's time zone, HH:mm */
+  time: string;
   partySize: number;
+  /** Specific table to book; omitted → smallest suitable free table */
+  tableId?: string;
   notes?: string;
 }
 
@@ -20,11 +24,14 @@ export interface UpdateReservationDTO {
 export interface ReservationDTO {
   id: string;
   restaurantId: string;
+  tableId?: string;
   guestName: string;
   guestEmail: string;
   guestPhone?: string;
-  date: string;
-  time: string;
+  /** UTC instant, ISO 8601 */
+  startsAt: string;
+  /** UTC instant, ISO 8601 */
+  endsAt: string;
   partySize: number;
   status: string;
   notes?: string;

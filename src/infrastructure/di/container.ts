@@ -19,9 +19,11 @@ import { IPasswordHasher } from '@application/ports/IPasswordHasher';
 
 // Domain Services
 import { ReservationDomainService } from '@domain/services/ReservationDomainService';
+import { AvailabilityService } from '@domain/services/AvailabilityService';
 
 // Use Cases
 import { CreateReservationUseCase } from '@application/use-cases/CreateReservationUseCase';
+import { GetAvailabilityUseCase } from '@application/use-cases/GetAvailabilityUseCase';
 import { GetReservationUseCase } from '@application/use-cases/GetReservationUseCase';
 import { ListReservationsUseCase } from '@application/use-cases/ListReservationsUseCase';
 import { ConfirmReservationUseCase } from '@application/use-cases/ConfirmReservationUseCase';
@@ -55,6 +57,7 @@ class Container {
   private tokenService?: ITokenService;
   private passwordHasher?: IPasswordHasher;
   private reservationDomainService?: ReservationDomainService;
+  private availabilityService?: AvailabilityService;
 
   private constructor() {
     this.prismaClient = prisma;
@@ -132,12 +135,30 @@ class Container {
     return this.reservationDomainService;
   }
 
+  public getAvailabilityService(): AvailabilityService {
+    if (!this.availabilityService) {
+      this.availabilityService = new AvailabilityService();
+    }
+    return this.availabilityService;
+  }
+
   // Use Cases
   public getCreateReservationUseCase(): CreateReservationUseCase {
     return new CreateReservationUseCase(
       this.getReservationRepository(),
       this.getTableRepository(),
-      this.getReservationDomainService()
+      this.getRestaurantRepository(),
+      this.getReservationDomainService(),
+      this.getAvailabilityService()
+    );
+  }
+
+  public getGetAvailabilityUseCase(): GetAvailabilityUseCase {
+    return new GetAvailabilityUseCase(
+      this.getReservationRepository(),
+      this.getTableRepository(),
+      this.getRestaurantRepository(),
+      this.getAvailabilityService()
     );
   }
 

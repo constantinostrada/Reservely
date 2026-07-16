@@ -10,7 +10,12 @@ export const createReservationSchema = z.object({
     .string()
     .max(20, 'Phone number must not exceed 20 characters')
     .optional(),
-  date: z.string().datetime('Invalid date format'),
+  date: z
+    .string()
+    .regex(
+      /^\d{4}-\d{2}-\d{2}$/,
+      'Date must be YYYY-MM-DD (restaurant local time)'
+    ),
   time: z
     .string()
     .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Time must be in HH:MM format'),
@@ -19,6 +24,7 @@ export const createReservationSchema = z.object({
     .int()
     .min(1, 'Party size must be at least 1')
     .max(50, 'Party size cannot exceed 50'),
+  tableId: z.string().min(1).optional(),
   notes: z
     .string()
     .max(500, 'Notes must not exceed 500 characters')
@@ -35,7 +41,10 @@ export const updateReservationSchema = z.object({
     .string()
     .max(20)
     .optional(),
-  date: z.string().datetime().optional(),
+  date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
   time: z
     .string()
     .regex(/^([01]\d|2[0-3]):([0-5]\d)$/)
