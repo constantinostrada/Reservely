@@ -6,6 +6,7 @@ export class TableMapper {
   static toDTO(table: Table): TableDTO {
     return {
       id: table.id,
+      restaurantId: table.restaurantId,
       tableNumber: table.tableNumber,
       capacity: table.capacity,
       location: table.location,
@@ -17,6 +18,7 @@ export class TableMapper {
 
   static toDomain(dto: CreateTableDTO): Table {
     return new Table({
+      restaurantId: dto.restaurantId,
       tableNumber: dto.tableNumber,
       capacity: dto.capacity,
       location: dto.location,

@@ -3,6 +3,7 @@ import { Email } from '../value-objects/Email';
 
 export interface ReservationProps {
   id?: string;
+  restaurantId: string;
   guestName: string;
   guestEmail: Email;
   guestPhone?: string;
@@ -29,6 +30,10 @@ export class Reservation {
   }
 
   private validateProps(props: ReservationProps): void {
+    if (!props.restaurantId || props.restaurantId.trim().length === 0) {
+      throw new Error('Restaurant id is required');
+    }
+
     if (!props.guestName || props.guestName.trim().length === 0) {
       throw new Error('Guest name is required');
     }
@@ -70,6 +75,10 @@ export class Reservation {
   // Getters
   get id(): string {
     return this.props.id!;
+  }
+
+  get restaurantId(): string {
+    return this.props.restaurantId;
   }
 
   get guestName(): string {

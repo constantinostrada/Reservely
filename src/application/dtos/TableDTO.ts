@@ -1,4 +1,5 @@
 export interface CreateTableDTO {
+  restaurantId: string;
   tableNumber: number;
   capacity: number;
   location?: string;
@@ -13,6 +14,7 @@ export interface UpdateTableDTO {
 
 export interface TableDTO {
   id: string;
+  restaurantId: string;
   tableNumber: number;
   capacity: number;
   location?: string;

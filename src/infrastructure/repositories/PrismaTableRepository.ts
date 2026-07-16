@@ -1,4 +1,8 @@
-import { PrismaClient } from '@prisma/client';
+import {
+  PrismaClient,
+  Table as PrismaTable,
+  TableStatus as PrismaTableStatus,
+} from '@prisma/client';
 import { ITableRepository } from '@domain/repositories/ITableRepository';
 import { Table } from '@domain/entities/Table';
 import { TableStatus } from '@domain/value-objects/TableStatus';
@@ -7,17 +11,18 @@ export class PrismaTableRepository implements ITableRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
   async save(table: Table): Promise<Table> {
-    const data = {
-      id: table.id,
-      tableNumber: table.tableNumber,
-      capacity: table.capacity,
-      location: table.location || null,
-      status: table.status.value,
-      createdAt: table.createdAt,
-      updatedAt: table.updatedAt,
-    };
-
-    const created = await this.prisma.table.create({ data });
+    const created = await this.prisma.table.create({
+      data: {
+        id: table.id,
+        restaurantId: table.restaurantId,
+        number: table.tableNumber,
+        capacity: table.capacity,
+        location: table.location || null,
+        status: this.toPersistenceStatus(table.status),
+        createdAt: table.createdAt,
+        updatedAt: table.updatedAt,
+      },
+    });
     return this.toDomain(created);
   }
 
@@ -29,30 +34,39 @@ export class PrismaTableRepository implements ITableRepository {
     return table ? this.toDomain(table) : null;
   }
 
-  async findByTableNumber(tableNumber: number): Promise<Table | null> {
+  async findByTableNumber(
+    restaurantId: string,
+    tableNumber: number
+  ): Promise<Table | null> {
     const table = await this.prisma.table.findUnique({
-      where: { tableNumber },
+      where: {
+        restaurantId_number: { restaurantId, number: tableNumber },
+      },
     });
 
     return table ? this.toDomain(table) : null;
   }
 
-  async findAvailableTables(): Promise<Table[]> {
+  async findAvailableTables(restaurantId: string): Promise<Table[]> {
     const tables = await this.prisma.table.findMany({
-      where: { status: 'available' },
+      where: { restaurantId, status: 'AVAILABLE' },
       orderBy: { capacity: 'asc' },
     });
 
     return tables.map((t) => this.toDomain(t));
   }
 
-  async findByCapacity(minCapacity: number): Promise<Table[]> {
+  async findByCapacity(
+    restaurantId: string,
+    minCapacity: number
+  ): Promise<Table[]> {
     const tables = await this.prisma.table.findMany({
       where: {
+        restaurantId,
         capacity: {
           gte: minCapacity,
         },
-        status: 'available',
+        status: 'AVAILABLE',
       },
       orderBy: { capacity: 'asc' },
     });
@@ -62,24 +76,22 @@ export class PrismaTableRepository implements ITableRepository {
 
   async findAll(): Promise<Table[]> {
     const tables = await this.prisma.table.findMany({
-      orderBy: { tableNumber: 'asc' },
+      orderBy: { number: 'asc' },
     });
 
     return tables.map((t) => this.toDomain(t));
   }
 
   async update(table: Table): Promise<Table> {
-    const data = {
-      tableNumber: table.tableNumber,
-      capacity: table.capacity,
-      location: table.location || null,
-      status: table.status.value,
-      updatedAt: new Date(),
-    };
-
     const updated = await this.prisma.table.update({
       where: { id: table.id },
-      data,
+      data: {
+        number: table.tableNumber,
+        capacity: table.capacity,
+        location: table.location || null,
+        status: this.toPersistenceStatus(table.status),
+        updatedAt: new Date(),
+      },
     });
 
     return this.toDomain(updated);
@@ -91,18 +103,15 @@ export class PrismaTableRepository implements ITableRepository {
     });
   }
 
-  private toDomain(data: {
-    id: string;
-    tableNumber: number;
-    capacity: number;
-    location: string | null;
-    status: string;
-    createdAt: Date;
-    updatedAt: Date;
-  }): Table {
+  private toPersistenceStatus(status: TableStatus): PrismaTableStatus {
+    return status.value.toUpperCase() as PrismaTableStatus;
+  }
+
+  private toDomain(data: PrismaTable): Table {
     return new Table({
       id: data.id,
-      tableNumber: data.tableNumber,
+      restaurantId: data.restaurantId,
+      tableNumber: data.number,
       capacity: data.capacity,
       location: data.location || undefined,
       status: TableStatus.fromString(data.status),

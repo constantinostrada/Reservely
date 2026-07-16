@@ -1,4 +1,8 @@
-import { PrismaClient } from '@prisma/client';
+import {
+  PrismaClient,
+  Reservation as PrismaReservation,
+  ReservationStatus as PrismaReservationStatus,
+} from '@prisma/client';
 import { IReservationRepository } from '@domain/repositories/IReservationRepository';
 import { Reservation } from '@domain/entities/Reservation';
 import { Email } from '@domain/value-objects/Email';
@@ -8,21 +12,21 @@ export class PrismaReservationRepository implements IReservationRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
   async save(reservation: Reservation): Promise<Reservation> {
-    const data = {
-      id: reservation.id,
-      guestName: reservation.guestName,
-      guestEmail: reservation.guestEmail.value,
-      guestPhone: reservation.guestPhone || null,
-      date: reservation.date,
-      time: reservation.time,
-      partySize: reservation.partySize,
-      status: reservation.status.value,
-      notes: reservation.notes || null,
-      createdAt: reservation.createdAt,
-      updatedAt: reservation.updatedAt,
-    };
-
-    const created = await this.prisma.reservation.create({ data });
+    const created = await this.prisma.reservation.create({
+      data: {
+        id: reservation.id,
+        restaurantId: reservation.restaurantId,
+        guestName: reservation.guestName,
+        guestEmail: reservation.guestEmail.value,
+        guestPhone: reservation.guestPhone || null,
+        startsAt: this.toStartsAt(reservation.date, reservation.time),
+        partySize: reservation.partySize,
+        status: this.toPersistenceStatus(reservation.status),
+        notes: reservation.notes || null,
+        createdAt: reservation.createdAt,
+        updatedAt: reservation.updatedAt,
+      },
+    });
     return this.toDomain(created);
   }
 
@@ -34,16 +38,19 @@ export class PrismaReservationRepository implements IReservationRepository {
     return reservation ? this.toDomain(reservation) : null;
   }
 
-  async findByEmail(email: string): Promise<Reservation[]> {
+  async findByEmail(
+    restaurantId: string,
+    email: string
+  ): Promise<Reservation[]> {
     const reservations = await this.prisma.reservation.findMany({
-      where: { guestEmail: email },
-      orderBy: { date: 'desc' },
+      where: { restaurantId, guestEmail: email },
+      orderBy: { startsAt: 'desc' },
     });
 
     return reservations.map((r) => this.toDomain(r));
   }
 
-  async findByDate(date: Date): Promise<Reservation[]> {
+  async findByDate(restaurantId: string, date: Date): Promise<Reservation[]> {
     const startOfDay = new Date(date);
     startOfDay.setHours(0, 0, 0, 0);
 
@@ -52,12 +59,13 @@ export class PrismaReservationRepository implements IReservationRepository {
 
     const reservations = await this.prisma.reservation.findMany({
       where: {
-        date: {
+        restaurantId,
+        startsAt: {
           gte: startOfDay,
           lte: endOfDay,
         },
       },
-      orderBy: { time: 'asc' },
+      orderBy: { startsAt: 'asc' },
     });
 
     return reservations.map((r) => this.toDomain(r));
@@ -72,21 +80,18 @@ export class PrismaReservationRepository implements IReservationRepository {
   }
 
   async update(reservation: Reservation): Promise<Reservation> {
-    const data = {
-      guestName: reservation.guestName,
-      guestEmail: reservation.guestEmail.value,
-      guestPhone: reservation.guestPhone || null,
-      date: reservation.date,
-      time: reservation.time,
-      partySize: reservation.partySize,
-      status: reservation.status.value,
-      notes: reservation.notes || null,
-      updatedAt: new Date(),
-    };
-
     const updated = await this.prisma.reservation.update({
       where: { id: reservation.id },
-      data,
+      data: {
+        guestName: reservation.guestName,
+        guestEmail: reservation.guestEmail.value,
+        guestPhone: reservation.guestPhone || null,
+        startsAt: this.toStartsAt(reservation.date, reservation.time),
+        partySize: reservation.partySize,
+        status: this.toPersistenceStatus(reservation.status),
+        notes: reservation.notes || null,
+        updatedAt: new Date(),
+      },
     });
 
     return this.toDomain(updated);
@@ -98,26 +103,31 @@ export class PrismaReservationRepository implements IReservationRepository {
     });
   }
 
-  private toDomain(data: {
-    id: string;
-    guestName: string;
-    guestEmail: string;
-    guestPhone: string | null;
-    date: Date;
-    time: string;
-    partySize: number;
-    status: string;
-    notes: string | null;
-    createdAt: Date;
-    updatedAt: Date;
-  }): Reservation {
+  private toStartsAt(date: Date, time: string): Date {
+    const [hours, minutes] = time.split(':').map(Number);
+    const startsAt = new Date(date);
+    startsAt.setHours(hours, minutes, 0, 0);
+    return startsAt;
+  }
+
+  private toPersistenceStatus(
+    status: ReservationStatus
+  ): PrismaReservationStatus {
+    return status.value.toUpperCase() as PrismaReservationStatus;
+  }
+
+  private toDomain(data: PrismaReservation): Reservation {
+    const hours = String(data.startsAt.getHours()).padStart(2, '0');
+    const minutes = String(data.startsAt.getMinutes()).padStart(2, '0');
+
     return new Reservation({
       id: data.id,
+      restaurantId: data.restaurantId,
       guestName: data.guestName,
       guestEmail: new Email(data.guestEmail),
       guestPhone: data.guestPhone || undefined,
-      date: data.date,
-      time: data.time,
+      date: data.startsAt,
+      time: `${hours}:${minutes}`,
       partySize: data.partySize,
       status: ReservationStatus.fromString(data.status),
       notes: data.notes || undefined,

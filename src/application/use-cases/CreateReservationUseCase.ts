@@ -23,7 +23,9 @@ export class CreateReservationUseCase {
     }
 
     // Check if we have available tables for the party size
-    const availableTables = await this.tableRepository.findAvailableTables();
+    const availableTables = await this.tableRepository.findAvailableTables(
+      reservation.restaurantId
+    );
     if (!this.domainService.canAccommodateReservation(reservation, availableTables)) {
       throw new Error(
         `No tables available to accommodate a party of ${reservation.partySize}`
@@ -32,6 +34,7 @@ export class CreateReservationUseCase {
 
     // Check for conflicts with existing reservations
     const existingReservations = await this.reservationRepository.findByDate(
+      reservation.restaurantId,
       reservation.date
     );
     if (

@@ -2,6 +2,7 @@ import { TableStatus } from '../value-objects/TableStatus';
 
 export interface TableProps {
   id?: string;
+  restaurantId: string;
   tableNumber: number;
   capacity: number;
   location?: string;
@@ -24,6 +25,10 @@ export class Table {
   }
 
   private validateProps(props: TableProps): void {
+    if (!props.restaurantId || props.restaurantId.trim().length === 0) {
+      throw new Error('Restaurant id is required');
+    }
+
     if (props.tableNumber < 1) {
       throw new Error('Table number must be at least 1');
     }
@@ -48,6 +53,10 @@ export class Table {
   // Getters
   get id(): string {
     return this.props.id!;
+  }
+
+  get restaurantId(): string {
+    return this.props.restaurantId;
   }
 
   get tableNumber(): number {

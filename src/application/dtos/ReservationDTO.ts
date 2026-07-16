@@ -1,4 +1,5 @@
 export interface CreateReservationDTO {
+  restaurantId: string;
   guestName: string;
   guestEmail: string;
   guestPhone?: string;
@@ -19,6 +20,7 @@ export interface UpdateReservationDTO {
 
 export interface ReservationDTO {
   id: string;
+  restaurantId: string;
   guestName: string;
   guestEmail: string;
   guestPhone?: string;

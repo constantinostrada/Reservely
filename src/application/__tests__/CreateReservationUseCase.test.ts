@@ -47,6 +47,7 @@ describe('CreateReservationUseCase', () => {
 
   describe('execute', () => {
     const validDto = {
+      restaurantId: 'rest-1',
       guestName: 'John Doe',
       guestEmail: 'john@example.com',
       guestPhone: '+1234567890',
@@ -58,6 +59,7 @@ describe('CreateReservationUseCase', () => {
 
     it('should create a reservation successfully', async () => {
       const mockTable = new Table({
+        restaurantId: 'rest-1',
         tableNumber: 1,
         capacity: 4,
         status: TableStatus.available(),
@@ -68,6 +70,7 @@ describe('CreateReservationUseCase', () => {
 
       const mockSavedReservation = new Reservation({
         id: 'test-id',
+        restaurantId: validDto.restaurantId,
         guestName: validDto.guestName,
         guestEmail: new Email(validDto.guestEmail),
         guestPhone: validDto.guestPhone,
@@ -110,12 +113,14 @@ describe('CreateReservationUseCase', () => {
 
     it('should throw error if reservation conflicts with existing one', async () => {
       const mockTable = new Table({
+        restaurantId: 'rest-1',
         tableNumber: 1,
         capacity: 4,
         status: TableStatus.available(),
       });
 
       const existingReservation = new Reservation({
+        restaurantId: 'rest-1',
         guestName: 'Jane Doe',
         guestEmail: new Email('jane@example.com'),
         date: new Date(validDto.date),

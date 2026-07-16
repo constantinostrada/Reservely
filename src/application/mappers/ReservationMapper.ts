@@ -7,6 +7,7 @@ export class ReservationMapper {
   static toDTO(reservation: Reservation): ReservationDTO {
     return {
       id: reservation.id,
+      restaurantId: reservation.restaurantId,
       guestName: reservation.guestName,
       guestEmail: reservation.guestEmail.value,
       guestPhone: reservation.guestPhone,
@@ -22,6 +23,7 @@ export class ReservationMapper {
 
   static toDomain(dto: CreateReservationDTO): Reservation {
     return new Reservation({
+      restaurantId: dto.restaurantId,
       guestName: dto.guestName,
       guestEmail: new Email(dto.guestEmail),
       guestPhone: dto.guestPhone,

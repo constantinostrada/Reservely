@@ -1,5 +1,10 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
+// Prisma schema for Reservely.
+//
+// Conventions (see README "Data Modeling Conventions"):
+// - ids are cuid() strings
+// - all tables/columns are snake_case via @@map/@map
+// - every tenant-owned row carries restaurant_id
+// - all monetary amounts are integer cents
 
 generator client {
   provider = "prisma-client-js"
@@ -10,33 +15,232 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Reservation {
-  id          String   @id @default(uuid())
-  guestName   String
-  guestEmail  String
-  guestPhone  String?
-  date        DateTime
-  time        String
-  partySize   Int
-  status      String   @default("pending")
-  notes       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+enum UserRole {
+  OWNER
+  MANAGER
+  STAFF
 
-  @@index([date, status])
-  @@index([guestEmail])
-  @@map("reservations")
+  @@map("user_role")
+}
+
+enum TableStatus {
+  AVAILABLE
+  RESERVED
+  UNAVAILABLE
+
+  @@map("table_status")
+}
+
+enum ReservationStatus {
+  PENDING
+  CONFIRMED
+  SEATED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+
+  @@map("reservation_status")
+}
+
+enum OrderStatus {
+  OPEN
+  SUBMITTED
+  IN_PROGRESS
+  SERVED
+  COMPLETED
+  CANCELLED
+
+  @@map("order_status")
+}
+
+enum PaymentMethod {
+  CARD
+  CASH
+  ONLINE
+
+  @@map("payment_method")
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+
+  @@map("payment_status")
+}
+
+/// Tenant root. Every other entity hangs off a restaurant.
+model Restaurant {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  timezone  String   @default("UTC")
+  /// ISO 4217 code; amounts everywhere are integer cents of this currency
+  currency  String   @default("USD")
+  address   String?
+  phone     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users        User[]
+  tables       Table[]
+  menuItems    MenuItem[]
+  reservations Reservation[]
+  orders       Order[]
+  orderItems   OrderItem[]
+  payments     Payment[]
+
+  @@map("restaurants")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  restaurantId String   @map("restaurant_id")
+  email        String
+  name         String
+  role         UserRole @default(STAFF)
+  passwordHash String?  @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([restaurantId, email])
+  @@index([restaurantId])
+  @@map("users")
 }
 
 model Table {
-  id          String   @id @default(uuid())
-  tableNumber Int      @unique
-  capacity    Int
-  location    String?
-  status      String   @default("available")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String      @id @default(cuid())
+  restaurantId String      @map("restaurant_id")
+  number       Int
+  capacity     Int
+  location     String?
+  status       TableStatus @default(AVAILABLE)
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
 
-  @@index([status])
+  restaurant   Restaurant    @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  reservations Reservation[]
+  orders       Order[]
+
+  @@unique([restaurantId, number])
+  @@index([restaurantId])
   @@map("tables")
+}
+
+model MenuItem {
+  id           String   @id @default(cuid())
+  restaurantId String   @map("restaurant_id")
+  name         String
+  description  String?
+  category     String
+  /// price in integer cents
+  priceCents   Int      @map("price_cents")
+  isAvailable  Boolean  @default(true) @map("is_available")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  restaurant Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  orderItems OrderItem[]
+
+  @@unique([restaurantId, name])
+  @@index([restaurantId, category])
+  @@map("menu_items")
+}
+
+model Reservation {
+  id           String            @id @default(cuid())
+  restaurantId String            @map("restaurant_id")
+  tableId      String?           @map("table_id")
+  guestName    String            @map("guest_name")
+  guestEmail   String            @map("guest_email")
+  guestPhone   String?           @map("guest_phone")
+  partySize    Int               @map("party_size")
+  startsAt     DateTime          @map("starts_at")
+  endsAt       DateTime?         @map("ends_at")
+  status       ReservationStatus @default(PENDING)
+  notes        String?
+  createdAt    DateTime          @default(now()) @map("created_at")
+  updatedAt    DateTime          @updatedAt @map("updated_at")
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  table      Table?     @relation(fields: [tableId], references: [id], onDelete: SetNull)
+  orders     Order[]
+
+  @@index([restaurantId, startsAt])
+  @@index([restaurantId, status])
+  @@index([restaurantId, guestEmail])
+  @@map("reservations")
+}
+
+model Order {
+  id            String      @id @default(cuid())
+  restaurantId  String      @map("restaurant_id")
+  reservationId String?     @map("reservation_id")
+  tableId       String?     @map("table_id")
+  status        OrderStatus @default(OPEN)
+  /// all amounts in integer cents
+  subtotalCents Int         @default(0) @map("subtotal_cents")
+  taxCents      Int         @default(0) @map("tax_cents")
+  tipCents      Int         @default(0) @map("tip_cents")
+  totalCents    Int         @default(0) @map("total_cents")
+  notes         String?
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+
+  restaurant  Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  reservation Reservation? @relation(fields: [reservationId], references: [id], onDelete: SetNull)
+  table       Table?       @relation(fields: [tableId], references: [id], onDelete: SetNull)
+  items       OrderItem[]
+  payments    Payment[]
+
+  @@index([restaurantId, status])
+  @@index([restaurantId, createdAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id             String   @id @default(cuid())
+  restaurantId   String   @map("restaurant_id")
+  orderId        String   @map("order_id")
+  menuItemId     String   @map("menu_item_id")
+  quantity       Int
+  /// snapshot of the menu item price at order time, integer cents
+  unitPriceCents Int      @map("unit_price_cents")
+  notes          String?
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  order      Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItem   MenuItem   @relation(fields: [menuItemId], references: [id], onDelete: Restrict)
+
+  @@index([restaurantId])
+  @@index([orderId])
+  @@map("order_items")
+}
+
+model Payment {
+  id           String        @id @default(cuid())
+  restaurantId String        @map("restaurant_id")
+  orderId      String        @map("order_id")
+  /// amount charged in integer cents (includes tip if tipCents > 0)
+  amountCents  Int           @map("amount_cents")
+  tipCents     Int           @default(0) @map("tip_cents")
+  method       PaymentMethod
+  status       PaymentStatus @default(PENDING)
+  /// reference id from the external payment processor, if any
+  externalRef  String?       @map("external_ref")
+  processedAt  DateTime?     @map("processed_at")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  order      Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId, status])
+  @@index([orderId])
+  @@map("payments")
 }

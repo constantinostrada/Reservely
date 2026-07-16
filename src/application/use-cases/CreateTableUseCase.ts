@@ -8,6 +8,7 @@ export class CreateTableUseCase {
   async execute(dto: CreateTableDTO): Promise<TableDTO> {
     // Check if table number already exists
     const existingTable = await this.tableRepository.findByTableNumber(
+      dto.restaurantId,
       dto.tableNumber
     );
 

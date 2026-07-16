@@ -98,6 +98,7 @@ Edit `.env` with your database credentials.
 ```bash
 npm run prisma:migrate
 npm run prisma:generate
+npm run prisma:seed
 ```
 
 5. Start the development server:
@@ -118,7 +119,48 @@ The application will be available at `http://localhost:3000`.
 - `npm run format:check` - Check code formatting
 - `npm run prisma:generate` - Generate Prisma client
 - `npm run prisma:migrate` - Run database migrations
+- `npm run prisma:seed` - Seed the database with sample data
 - `npm run prisma:studio` - Open Prisma Studio
+
+## Data Model
+
+The Prisma schema (`prisma/schema.prisma`) defines the full Reservely domain:
+`Restaurant`, `User`, `Table`, `MenuItem`, `Reservation`, `Order`, `OrderItem`,
+and `Payment`.
+
+### Modeling Conventions
+
+- **Money as integer cents.** Every monetary field (`price_cents`,
+  `unit_price_cents`, `subtotal_cents`, `tax_cents`, `tip_cents`,
+  `total_cents`, `amount_cents`) is an `Int` holding cents of the
+  restaurant's currency. Floats are never used for money — integer math
+  avoids rounding drift; format to a display amount only at the edge.
+  Each restaurant carries an ISO 4217 `currency` code (e.g. `USD`, `EUR`).
+- **Tenant scoping.** `Restaurant` is the tenant root. Every tenant-owned
+  row carries a `restaurant_id` foreign key — including line-item tables
+  like `order_items`, so tenant filters never require a join. Uniqueness
+  is scoped per tenant (e.g. a table `number` or menu item `name` is unique
+  *within* a restaurant, not globally), and indexes are prefixed with
+  `restaurant_id` to keep tenant-scoped queries fast.
+- **Naming.** Database tables and columns are `snake_case` (mapped via
+  `@@map`/`@map`), while the Prisma client API stays `camelCase`.
+  Table names are plural (`restaurants`, `order_items`); enums are
+  `SCREAMING_SNAKE` values in `snake_case` types.
+- **Ids.** All primary keys are `cuid()` strings — collision-safe,
+  sortable-ish, and generatable client-side (no sequence round-trip).
+- **Price snapshots.** `order_items.unit_price_cents` copies the menu
+  item's price at order time, so later menu edits never rewrite past
+  orders; `menu_items` are `Restrict`-protected from deletion while
+  referenced. Order totals are stored denormalized on `orders`.
+- **Deletion behavior.** Deleting a restaurant cascades to everything it
+  owns. Deleting a table or reservation leaves orders/reservations in
+  place (`SetNull`); payments and order items die with their order.
+
+### Seed Data
+
+`prisma/seed.ts` (run via `npm run prisma:seed`) creates two restaurants —
+*Trattoria Bella* (EUR) and *Harbor Diner* (USD) — each with users, tables,
+and a small menu. The seed is idempotent: it wipes and recreates the data.
 
 ## Project Structure
 
