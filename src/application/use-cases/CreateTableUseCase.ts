@@ -1,4 +1,5 @@
 import { ITableRepository } from '@domain/repositories/ITableRepository';
+import { ConflictException } from '@domain/exceptions/DomainException';
 import { TenantContext } from '../common/TenantContext';
 import { CreateTableDTO, TableDTO } from '../dtos/TableDTO';
 import { TableMapper } from '../mappers/TableMapper';
@@ -17,7 +18,7 @@ export class CreateTableUseCase {
     );
 
     if (existingTable) {
-      throw new Error(
+      throw new ConflictException(
         `Table number ${dto.tableNumber} already exists`
       );
     }

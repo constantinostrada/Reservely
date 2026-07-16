@@ -3,9 +3,11 @@ import prisma from '../database/prisma';
 
 // Repositories
 import { PrismaReservationRepository } from '../repositories/PrismaReservationRepository';
+import { PrismaRestaurantRepository } from '../repositories/PrismaRestaurantRepository';
 import { PrismaTableRepository } from '../repositories/PrismaTableRepository';
 import { PrismaUserRepository } from '../repositories/PrismaUserRepository';
 import { IReservationRepository } from '@domain/repositories/IReservationRepository';
+import { IRestaurantRepository } from '@domain/repositories/IRestaurantRepository';
 import { ITableRepository } from '@domain/repositories/ITableRepository';
 import { IUserRepository } from '@domain/repositories/IUserRepository';
 
@@ -25,7 +27,15 @@ import { ListReservationsUseCase } from '@application/use-cases/ListReservations
 import { ConfirmReservationUseCase } from '@application/use-cases/ConfirmReservationUseCase';
 import { CancelReservationUseCase } from '@application/use-cases/CancelReservationUseCase';
 import { CreateTableUseCase } from '@application/use-cases/CreateTableUseCase';
+import { GetTableUseCase } from '@application/use-cases/GetTableUseCase';
 import { ListTablesUseCase } from '@application/use-cases/ListTablesUseCase';
+import { UpdateTableUseCase } from '@application/use-cases/UpdateTableUseCase';
+import { DeleteTableUseCase } from '@application/use-cases/DeleteTableUseCase';
+import { CreateRestaurantUseCase } from '@application/use-cases/CreateRestaurantUseCase';
+import { GetRestaurantUseCase } from '@application/use-cases/GetRestaurantUseCase';
+import { ListRestaurantsUseCase } from '@application/use-cases/ListRestaurantsUseCase';
+import { UpdateRestaurantUseCase } from '@application/use-cases/UpdateRestaurantUseCase';
+import { DeleteRestaurantUseCase } from '@application/use-cases/DeleteRestaurantUseCase';
 import { LoginUseCase } from '@application/use-cases/LoginUseCase';
 import { GetCurrentUserUseCase } from '@application/use-cases/GetCurrentUserUseCase';
 
@@ -39,6 +49,7 @@ class Container {
   private static instance: Container;
   private prismaClient: PrismaClient;
   private reservationRepo?: IReservationRepository;
+  private restaurantRepo?: IRestaurantRepository;
   private tableRepo?: ITableRepository;
   private userRepo?: IUserRepository;
   private tokenService?: ITokenService;
@@ -59,11 +70,16 @@ class Container {
   // Repositories
   public getReservationRepository(): IReservationRepository {
     if (!this.reservationRepo) {
-      this.reservationRepo = new PrismaReservationRepository(
-        this.prismaClient
-      );
+      this.reservationRepo = new PrismaReservationRepository(this.prismaClient);
     }
     return this.reservationRepo;
+  }
+
+  public getRestaurantRepository(): IRestaurantRepository {
+    if (!this.restaurantRepo) {
+      this.restaurantRepo = new PrismaRestaurantRepository(this.prismaClient);
+    }
+    return this.restaurantRepo;
   }
 
   public getTableRepository(): ITableRepository {
@@ -145,8 +161,40 @@ class Container {
     return new CreateTableUseCase(this.getTableRepository());
   }
 
+  public getGetTableUseCase(): GetTableUseCase {
+    return new GetTableUseCase(this.getTableRepository());
+  }
+
   public getListTablesUseCase(): ListTablesUseCase {
     return new ListTablesUseCase(this.getTableRepository());
+  }
+
+  public getUpdateTableUseCase(): UpdateTableUseCase {
+    return new UpdateTableUseCase(this.getTableRepository());
+  }
+
+  public getDeleteTableUseCase(): DeleteTableUseCase {
+    return new DeleteTableUseCase(this.getTableRepository());
+  }
+
+  public getCreateRestaurantUseCase(): CreateRestaurantUseCase {
+    return new CreateRestaurantUseCase(this.getRestaurantRepository());
+  }
+
+  public getGetRestaurantUseCase(): GetRestaurantUseCase {
+    return new GetRestaurantUseCase(this.getRestaurantRepository());
+  }
+
+  public getListRestaurantsUseCase(): ListRestaurantsUseCase {
+    return new ListRestaurantsUseCase(this.getRestaurantRepository());
+  }
+
+  public getUpdateRestaurantUseCase(): UpdateRestaurantUseCase {
+    return new UpdateRestaurantUseCase(this.getRestaurantRepository());
+  }
+
+  public getDeleteRestaurantUseCase(): DeleteRestaurantUseCase {
+    return new DeleteRestaurantUseCase(this.getRestaurantRepository());
   }
 
   public getLoginUseCase(): LoginUseCase {

@@ -2,6 +2,87 @@
 
 Base URL: `http://localhost:3000/api`
 
+> All endpoints except `POST /restaurants`, `POST /auth/login` and `GET /health`
+> require authentication: a `Bearer` token in the `Authorization` header or the
+> `auth_token` httpOnly cookie (set by login). Every request is scoped to the
+> restaurant in the token.
+
+## Restaurants
+
+### Create Restaurant (public — tenant onboarding)
+```http
+POST /restaurants
+Content-Type: application/json
+```
+
+**Request Body**
+```json
+{
+  "name": "La Trattoria",
+  "slug": "la-trattoria",
+  "timezone": "America/New_York",
+  "currency": "USD",
+  "address": "123 Main St",
+  "phone": "+1234567890"
+}
+```
+
+**Response** (201 Created)
+```json
+{
+  "id": "cuid",
+  "name": "La Trattoria",
+  "slug": "la-trattoria",
+  "timezone": "America/New_York",
+  "currency": "USD",
+  "address": "123 Main St",
+  "phone": "+1234567890",
+  "createdAt": "2024-01-01T10:00:00.000Z",
+  "updatedAt": "2024-01-01T10:00:00.000Z"
+}
+```
+
+Returns `409 Conflict` if the slug is already taken.
+
+### List Restaurants
+```http
+GET /restaurants
+```
+
+Tenant-scoped: returns only the caller's own restaurant.
+
+**Response**
+```json
+{
+  "restaurants": [{ "id": "cuid", "name": "La Trattoria", "...": "..." }],
+  "total": 1
+}
+```
+
+### Get Restaurant by ID
+```http
+GET /restaurants/:id
+```
+
+Returns `403 Forbidden` for another tenant's restaurant, `404` if missing.
+
+### Update Restaurant
+```http
+PATCH /restaurants/:id
+Content-Type: application/json
+```
+
+Partial update of `name`, `timezone`, `currency`, `address`, `phone`.
+The `slug` is immutable.
+
+### Delete Restaurant
+```http
+DELETE /restaurants/:id
+```
+
+Owner role only (`403` otherwise). Cascades to everything the restaurant
+owns. **Response**: `204 No Content`.
+
 ## Reservations
 
 ### List All Reservations
@@ -186,6 +267,38 @@ Content-Type: application/json
 }
 ```
 
+### Get Table by ID
+```http
+GET /tables/:id
+```
+
+Returns `403 Forbidden` for another tenant's table, `404` if missing.
+
+### Update Table
+```http
+PATCH /tables/:id
+Content-Type: application/json
+```
+
+**Request Body** (all fields optional)
+```json
+{
+  "tableNumber": 2,
+  "capacity": 6,
+  "location": "Patio",
+  "status": "unavailable"
+}
+```
+
+Returns `409 Conflict` when renumbering onto an existing table number.
+
+### Delete Table
+```http
+DELETE /tables/:id
+```
+
+**Response**: `204 No Content`.
+
 ## Health Check
 
 ### Check API Health
@@ -217,11 +330,35 @@ GET /health
 }
 ```
 
+### 401 Unauthorized
+```json
+{
+  "error": "Unauthorized",
+  "message": "Authentication token is missing"
+}
+```
+
+### 403 Forbidden
+```json
+{
+  "error": "Forbidden",
+  "message": "This resource belongs to another restaurant"
+}
+```
+
 ### 404 Not Found
 ```json
 {
   "error": "Not found",
   "message": "Reservation with id abc-123 not found"
+}
+```
+
+### 409 Conflict
+```json
+{
+  "error": "Conflict",
+  "message": "Table number 2 already exists"
 }
 ```
 
@@ -243,10 +380,14 @@ GET /health
 
 ## Status Codes
 
-- `200 OK` - Successful GET request
+- `200 OK` - Successful GET/PATCH request
 - `201 Created` - Successful POST request creating a resource
+- `204 No Content` - Successful DELETE request
 - `400 Bad Request` - Validation error
+- `401 Unauthorized` - Missing or invalid authentication token
+- `403 Forbidden` - Authenticated but not allowed (e.g. cross-tenant access)
 - `404 Not Found` - Resource not found
+- `409 Conflict` - Duplicate resource (slug, table number)
 - `422 Unprocessable Entity` - Business rule violation
 - `500 Internal Server Error` - Server error
 
@@ -262,9 +403,17 @@ GET /health
 - `notes`: optional, max 500 characters
 
 ### Table
-- `tableNumber`: required, integer >= 1, unique
+- `tableNumber`: required, integer >= 1, unique per restaurant
 - `capacity`: required, integer between 1-20
 - `location`: optional, max 50 characters
+
+### Restaurant
+- `name`: required, max 100 characters
+- `slug`: required, lowercase letters/numbers/hyphens, max 50 characters, globally unique, immutable
+- `timezone`: optional (defaults to `UTC`), non-empty
+- `currency`: optional (defaults to `USD`), 3-letter ISO 4217 code
+- `address`: optional, max 200 characters
+- `phone`: optional, max 30 characters
 
 ## Business Rules
 

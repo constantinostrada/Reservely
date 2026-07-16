@@ -84,6 +84,36 @@ export class Table {
   }
 
   // Business methods
+
+  /**
+   * Applies a partial update, re-running the entity invariants.
+   * The table number's uniqueness within the restaurant is checked by the
+   * use case (it needs the repository); size/format rules live here.
+   */
+  public updateDetails(changes: {
+    tableNumber?: number;
+    capacity?: number;
+    location?: string;
+  }): void {
+    const next: TableProps = {
+      ...this.props,
+      tableNumber: changes.tableNumber ?? this.props.tableNumber,
+      capacity: changes.capacity ?? this.props.capacity,
+      location: changes.location ?? this.props.location,
+    };
+    this.validateProps(next);
+
+    this.props.tableNumber = next.tableNumber;
+    this.props.capacity = next.capacity;
+    this.props.location = next.location;
+    this.props.updatedAt = new Date();
+  }
+
+  public changeStatus(status: TableStatus): void {
+    this.props.status = status;
+    this.props.updatedAt = new Date();
+  }
+
   public reserve(): void {
     if (this.props.status.value === 'reserved') {
       throw new Error('Table is already reserved');

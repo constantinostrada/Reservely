@@ -213,29 +213,62 @@ export async function POST(request: NextRequest) {
 
 ## Common Patterns
 
-### 1. Creating a New Feature
+### 1. Creating a New Feature (CRUD reference: Restaurants & Tables)
+
+The Restaurants and Tables CRUD is the reference implementation for every
+new backend feature. Copy its shape file-for-file:
 
 ```
 1. Domain: Define entity/value object
-   └─> src/domain/entities/YourEntity.ts
+   └─> src/domain/entities/Restaurant.ts
+       (invariants validated in the constructor; partial updates go
+        through a method like updateDetails() that re-validates)
 
-2. Domain: Define repository interface
-   └─> src/domain/repositories/IYourEntityRepository.ts
+2. Domain: Define repository PORT (interface only)
+   └─> src/domain/repositories/IRestaurantRepository.ts
+       (list/delete methods take restaurantId for tenant scoping;
+        findById is deliberately unscoped — see step 4)
 
-3. Application: Create DTOs
-   └─> src/application/dtos/YourEntityDTO.ts
+3. Application: Create DTOs + mapper
+   └─> src/application/dtos/RestaurantDTO.ts
+   └─> src/application/mappers/RestaurantMapper.ts
+       (use cases accept and return DTOs, never raw entities)
 
-4. Application: Create use case
-   └─> src/application/use-cases/CreateYourEntityUseCase.ts
+4. Application: One use case per operation, each with a single execute()
+   └─> src/application/use-cases/CreateRestaurantUseCase.ts
+   └─> src/application/use-cases/GetRestaurantUseCase.ts      (…List/Update/Delete)
+       Rules:
+       - dependencies (ports) arrive via constructor
+       - by-id reads: findById → EntityNotFoundException (404) if missing,
+         then assertSameTenant() → ForbiddenException (403) if cross-tenant
+       - uniqueness collisions → ConflictException (409)
+       - never throw HTTP-shaped errors here — only domain exceptions
 
-5. Infrastructure: Implement repository
-   └─> src/infrastructure/repositories/PrismaYourEntityRepository.ts
+5. Infrastructure: Implement the port with Prisma
+   └─> src/infrastructure/repositories/PrismaRestaurantRepository.ts
+       (maps Prisma rows ↔ domain entities; scoped queries use the
+        withTenant() helper; no business logic)
 
-6. Interfaces: Create controller
-   └─> src/interfaces/http/controllers/YourEntityController.ts
+6. Infrastructure: Register in the DI container
+   └─> src/infrastructure/di/container.ts
+       (add getXxxRepository() + one getXxxUseCase() per use case)
 
-7. Interfaces: Create API route
-   └─> app/api/your-entity/route.ts
+7. Interfaces: Zod schema + thin controller
+   └─> src/interfaces/http/validation/restaurantSchemas.ts
+   └─> src/interfaces/http/controllers/RestaurantController.ts
+       (controller = one method per operation: resolve use case from the
+        container, call execute(), return the result — nothing else)
+
+8. Interfaces: API routes
+   └─> app/api/restaurants/route.ts        (GET list, POST create)
+   └─> app/api/restaurants/[id]/route.ts   (GET, PATCH, DELETE)
+       Every handler follows the same skeleton:
+         withAuth → parse body with the Zod schema → controller →
+         NextResponse.json(result) — and EVERY catch ends in
+         handleError(error), the single shared error middleware
+
+9. Tests: mock the port, exercise the use case
+   └─> src/application/__tests__/RestaurantCrudUseCases.test.ts
 ```
 
 ### 2. Dependency Injection

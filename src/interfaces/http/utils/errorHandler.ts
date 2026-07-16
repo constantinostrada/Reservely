@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import {
+  ConflictException,
   DomainException,
   EntityNotFoundException,
   ForbiddenException,
@@ -64,6 +65,17 @@ export function handleError(error: unknown): NextResponse {
         message: error.message,
       },
       { status: 404 }
+    );
+  }
+
+  // Duplicate resource (e.g. slug or table number already taken)
+  if (error instanceof ConflictException) {
+    return NextResponse.json(
+      {
+        error: 'Conflict',
+        message: error.message,
+      },
+      { status: 409 }
     );
   }
 

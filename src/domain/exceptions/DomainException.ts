@@ -22,6 +22,14 @@ export class InvalidOperationException extends DomainException {
   }
 }
 
+export class ConflictException extends DomainException {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ConflictException';
+    Object.setPrototypeOf(this, ConflictException.prototype);
+  }
+}
+
 export class ValidationException extends DomainException {
   constructor(message: string) {
     super(message);
