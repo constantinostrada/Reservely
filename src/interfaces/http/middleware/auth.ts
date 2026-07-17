@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { container } from '@infrastructure/di/container';
 import { TenantContext } from '@application/common/TenantContext';
+import { AUTH_COOKIE_NAME } from '../authCookie';
 
-export const AUTH_COOKIE_NAME = 'auth_token';
+export { AUTH_COOKIE_NAME };
 
 type AuthenticatedHandler<Ctx> = (
   request: NextRequest,
