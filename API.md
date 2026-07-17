@@ -2,20 +2,75 @@
 
 Base URL: `http://localhost:3000/api`
 
-> All endpoints except `POST /restaurants`, `POST /auth/login` and `GET /health`
-> require authentication: a `Bearer` token in the `Authorization` header or the
-> `auth_token` httpOnly cookie (set by login). Every request is scoped to the
-> restaurant in the token.
+> All endpoints except `POST /restaurants`, `POST /auth/login`,
+> `POST /webhooks/payments` and `GET /health` require authentication: a
+> `Bearer` token in the `Authorization` header or the `auth_token` httpOnly
+> cookie (set by login). Every request is scoped to the restaurant in the token.
+
+## Authentication
+
+### Login
+
+```http
+POST /auth/login
+Content-Type: application/json
+```
+
+**Request Body**
+
+```json
+{
+  "email": "owner@trattoria-bella.example",
+  "password": "password123"
+}
+```
+
+**Response** (200 OK) — also sets the `auth_token` httpOnly cookie.
+
+```json
+{
+  "token": "<jwt>",
+  "user": {
+    "id": "cuid",
+    "restaurantId": "cuid",
+    "email": "owner@trattoria-bella.example",
+    "name": "Giulia Rossi",
+    "role": "OWNER"
+  }
+}
+```
+
+Returns `401 Unauthorized` for unknown email or wrong password.
+
+### Logout
+
+```http
+POST /auth/logout
+```
+
+Clears the `auth_token` cookie. JWTs are stateless, so this only discards the
+session cookie. **Response** (200 OK): `{ "success": true }`.
+
+### Current User
+
+```http
+GET /auth/me
+```
+
+**Response** (200 OK): the authenticated `user` object (same shape as the
+`user` field of the login response).
 
 ## Restaurants
 
 ### Create Restaurant (public — tenant onboarding)
+
 ```http
 POST /restaurants
 Content-Type: application/json
 ```
 
 **Request Body**
+
 ```json
 {
   "name": "La Trattoria",
@@ -28,6 +83,7 @@ Content-Type: application/json
 ```
 
 **Response** (201 Created)
+
 ```json
 {
   "id": "cuid",
@@ -45,6 +101,7 @@ Content-Type: application/json
 Returns `409 Conflict` if the slug is already taken.
 
 ### List Restaurants
+
 ```http
 GET /restaurants
 ```
@@ -52,6 +109,7 @@ GET /restaurants
 Tenant-scoped: returns only the caller's own restaurant.
 
 **Response**
+
 ```json
 {
   "restaurants": [{ "id": "cuid", "name": "La Trattoria", "...": "..." }],
@@ -60,6 +118,7 @@ Tenant-scoped: returns only the caller's own restaurant.
 ```
 
 ### Get Restaurant by ID
+
 ```http
 GET /restaurants/:id
 ```
@@ -67,6 +126,7 @@ GET /restaurants/:id
 Returns `403 Forbidden` for another tenant's restaurant, `404` if missing.
 
 ### Update Restaurant
+
 ```http
 PATCH /restaurants/:id
 Content-Type: application/json
@@ -76,6 +136,7 @@ Partial update of `name`, `timezone`, `currency`, `address`, `phone`.
 The `slug` is immutable.
 
 ### Delete Restaurant
+
 ```http
 DELETE /restaurants/:id
 ```
@@ -85,143 +146,148 @@ owns. **Response**: `204 No Content`.
 
 ## Reservations
 
+Clients send the reservation's **restaurant-local** calendar `date`
+(`YYYY-MM-DD`) and wall-clock `time` (`HH:MM`); the server converts them to UTC
+instants using the restaurant's time zone. Responses therefore carry `startsAt`
+and `endsAt` as UTC ISO-8601 instants (not the original `date`/`time` pair).
+Every reservation entity shares this shape:
+
+```json
+{
+  "id": "uuid",
+  "restaurantId": "cuid",
+  "tableId": "cuid",
+  "guestName": "John Doe",
+  "guestEmail": "john@example.com",
+  "guestPhone": "+1234567890",
+  "startsAt": "2024-01-15T18:30:00.000Z",
+  "endsAt": "2024-01-15T20:00:00.000Z",
+  "partySize": 4,
+  "status": "pending",
+  "notes": "Window seat preferred",
+  "createdAt": "2024-01-10T10:00:00.000Z",
+  "updatedAt": "2024-01-10T10:00:00.000Z"
+}
+```
+
 ### List All Reservations
+
 ```http
 GET /reservations
 ```
 
-**Response**
-```json
-{
-  "reservations": [
-    {
-      "id": "uuid",
-      "guestName": "John Doe",
-      "guestEmail": "john@example.com",
-      "guestPhone": "+1234567890",
-      "date": "2024-01-15T00:00:00.000Z",
-      "time": "18:30",
-      "partySize": 4,
-      "status": "pending",
-      "notes": "Window seat preferred",
-      "createdAt": "2024-01-10T10:00:00.000Z",
-      "updatedAt": "2024-01-10T10:00:00.000Z"
-    }
-  ],
-  "total": 1
-}
-```
+**Response**: `{ "reservations": [ <reservation> ], "total": 1 }`.
 
 ### Create Reservation
+
 ```http
 POST /reservations
 Content-Type: application/json
 ```
 
 **Request Body**
+
 ```json
 {
   "guestName": "John Doe",
   "guestEmail": "john@example.com",
   "guestPhone": "+1234567890",
-  "date": "2024-01-15T00:00:00.000Z",
+  "date": "2024-01-15",
   "time": "18:30",
   "partySize": 4,
+  "tableId": "cuid",
   "notes": "Window seat preferred"
 }
 ```
 
-**Response** (201 Created)
-```json
-{
-  "id": "uuid",
-  "guestName": "John Doe",
-  "guestEmail": "john@example.com",
-  "guestPhone": "+1234567890",
-  "date": "2024-01-15T00:00:00.000Z",
-  "time": "18:30",
-  "partySize": 4,
-  "status": "pending",
-  "notes": "Window seat preferred",
-  "createdAt": "2024-01-10T10:00:00.000Z",
-  "updatedAt": "2024-01-10T10:00:00.000Z"
-}
-```
+`tableId` is optional: when omitted the smallest suitable free table is
+auto-assigned. **Response** (201 Created): the created reservation (status
+`pending`).
+
+Returns `400 Bad Request` when the time is outside operating hours or no table
+fits the party, and `409 Conflict` when the requested table/slot is already
+held (see double-booking below).
 
 ### Get Reservation by ID
+
 ```http
 GET /reservations/:id
 ```
 
-**Response**
-```json
-{
-  "id": "uuid",
-  "guestName": "John Doe",
-  "guestEmail": "john@example.com",
-  "guestPhone": "+1234567890",
-  "date": "2024-01-15T00:00:00.000Z",
-  "time": "18:30",
-  "partySize": 4,
-  "status": "pending",
-  "notes": "Window seat preferred",
-  "createdAt": "2024-01-10T10:00:00.000Z",
-  "updatedAt": "2024-01-10T10:00:00.000Z"
-}
-```
+**Response** (200 OK): the reservation.
 
 ### Confirm Reservation
+
 ```http
 POST /reservations/:id/confirm
 ```
 
-**Response**
-```json
-{
-  "id": "uuid",
-  "guestName": "John Doe",
-  "guestEmail": "john@example.com",
-  "guestPhone": "+1234567890",
-  "date": "2024-01-15T00:00:00.000Z",
-  "time": "18:30",
-  "partySize": 4,
-  "status": "confirmed",
-  "notes": "Window seat preferred",
-  "createdAt": "2024-01-10T10:00:00.000Z",
-  "updatedAt": "2024-01-10T11:00:00.000Z"
-}
-```
+**Response** (200 OK): the reservation with status `confirmed`. Returns `422`
+when the reservation is cancelled/completed.
 
 ### Cancel Reservation
+
 ```http
 POST /reservations/:id/cancel
 ```
 
-**Response**
+**Response** (200 OK): the reservation with status `cancelled`. Cancelling
+frees the table's slot for a new booking.
+
+## Availability
+
+### Get Table Availability
+
+```http
+GET /availability?date=2024-01-15&partySize=4
+```
+
+Returns the free reservation slots for each table that can seat the party on
+the given restaurant-local date. Slots are half-open `[startsAt, endsAt)` UTC
+instants at a fixed interval within operating hours; a slot already held by a
+live reservation is omitted.
+
+**Query params**
+
+- `date`: required, `YYYY-MM-DD` (restaurant local time)
+- `partySize`: required, integer 1–50
+
+**Response** (200 OK)
+
 ```json
 {
-  "id": "uuid",
-  "guestName": "John Doe",
-  "guestEmail": "john@example.com",
-  "guestPhone": "+1234567890",
-  "date": "2024-01-15T00:00:00.000Z",
-  "time": "18:30",
+  "restaurantId": "cuid",
+  "date": "2024-01-15",
+  "timezone": "America/New_York",
   "partySize": 4,
-  "status": "cancelled",
-  "notes": "Window seat preferred",
-  "createdAt": "2024-01-10T10:00:00.000Z",
-  "updatedAt": "2024-01-10T12:00:00.000Z"
+  "slotDurationMinutes": 90,
+  "tables": [
+    {
+      "tableId": "cuid",
+      "tableNumber": 3,
+      "capacity": 4,
+      "location": "main room",
+      "freeSlots": [
+        {
+          "startsAt": "2024-01-15T16:00:00.000Z",
+          "endsAt": "2024-01-15T17:30:00.000Z"
+        }
+      ]
+    }
+  ]
 }
 ```
 
 ## Tables
 
 ### List All Tables
+
 ```http
 GET /tables
 ```
 
 **Response**
+
 ```json
 {
   "tables": [
@@ -240,12 +306,14 @@ GET /tables
 ```
 
 ### Create Table
+
 ```http
 POST /tables
 Content-Type: application/json
 ```
 
 **Request Body**
+
 ```json
 {
   "tableNumber": 1,
@@ -255,6 +323,7 @@ Content-Type: application/json
 ```
 
 **Response** (201 Created)
+
 ```json
 {
   "id": "uuid",
@@ -268,6 +337,7 @@ Content-Type: application/json
 ```
 
 ### Get Table by ID
+
 ```http
 GET /tables/:id
 ```
@@ -275,12 +345,14 @@ GET /tables/:id
 Returns `403 Forbidden` for another tenant's table, `404` if missing.
 
 ### Update Table
+
 ```http
 PATCH /tables/:id
 Content-Type: application/json
 ```
 
 **Request Body** (all fields optional)
+
 ```json
 {
   "tableNumber": 2,
@@ -293,6 +365,7 @@ Content-Type: application/json
 Returns `409 Conflict` when renumbering onto an existing table number.
 
 ### Delete Table
+
 ```http
 DELETE /tables/:id
 ```
@@ -304,11 +377,13 @@ DELETE /tables/:id
 All amounts are integer cents of the restaurant's currency.
 
 ### List Menu Items
+
 ```http
 GET /menu-items
 ```
 
 **Response**
+
 ```json
 {
   "menuItems": [
@@ -329,12 +404,14 @@ GET /menu-items
 ```
 
 ### Create Menu Item
+
 ```http
 POST /menu-items
 Content-Type: application/json
 ```
 
 **Request Body**
+
 ```json
 {
   "name": "Margherita",
@@ -350,11 +427,13 @@ Content-Type: application/json
 Returns `409 Conflict` when the name already exists in the restaurant.
 
 ### Get Menu Item by ID
+
 ```http
 GET /menu-items/:id
 ```
 
 ### Update Menu Item
+
 ```http
 PATCH /menu-items/:id
 Content-Type: application/json
@@ -363,6 +442,7 @@ Content-Type: application/json
 All fields optional: `name`, `description`, `category`, `priceCents`, `isAvailable`.
 
 ### Delete Menu Item
+
 ```http
 DELETE /menu-items/:id
 ```
@@ -378,12 +458,14 @@ menu item's name and price at order time, so later menu edits don't change
 past orders. All amounts are integer cents.
 
 ### List Orders
+
 ```http
 GET /orders
 GET /orders?reservationId=:reservationId
 ```
 
 **Response**
+
 ```json
 {
   "orders": [ { "id": "...", "items": [ ... ], "totalCents": 5400 } ],
@@ -392,12 +474,14 @@ GET /orders?reservationId=:reservationId
 ```
 
 ### Place Order
+
 ```http
 POST /orders
 Content-Type: application/json
 ```
 
 **Request Body**
+
 ```json
 {
   "reservationId": "cuid",
@@ -411,6 +495,7 @@ Content-Type: application/json
 ```
 
 **Response** (201 Created)
+
 ```json
 {
   "id": "uuid",
@@ -443,11 +528,13 @@ Returns `404 Not Found` for an unknown reservation or menu item,
 or a menu item is unavailable.
 
 ### Get Order by ID
+
 ```http
 GET /orders/:id
 ```
 
 ### Split Bill
+
 ```http
 GET /orders/:id/split?ways=3
 ```
@@ -458,6 +545,7 @@ the remainder is distributed one cent at a time to the first shares
 (deterministic — the same input always yields the same shares).
 
 **Response**
+
 ```json
 {
   "orderId": "uuid",
@@ -472,14 +560,98 @@ the remainder is distributed one cent at a time to the first shares
 
 - `ways`: required, integer between 1-50
 
+## Payments
+
+Charging is asynchronous: `POST /orders/:id/charge` opens a `pending` payment
+and initiates the charge with the provider; the final outcome arrives later as
+a provider webhook. All amounts are integer cents.
+
+### Charge a Bill
+
+```http
+POST /orders/:id/charge
+Content-Type: application/json
+```
+
+**Request Body** (optional — an empty body defaults `method` to `card`)
+
+```json
+{
+  "method": "card"
+}
+```
+
+`method` is one of `card`, `cash`, `online`.
+
+**Response** (201 Created)
+
+```json
+{
+  "id": "uuid",
+  "restaurantId": "cuid",
+  "orderId": "cuid",
+  "amountCents": 2300,
+  "tipCents": 300,
+  "method": "card",
+  "status": "pending",
+  "externalRef": "ch_mock_...",
+  "createdAt": "2024-01-10T10:00:00.000Z",
+  "updatedAt": "2024-01-10T10:00:00.000Z"
+}
+```
+
+`amountCents` snapshots the order total (subtotal + tax + tip) at charge time.
+Returns `404` for an unknown order, `422` when the order is cancelled, and
+`409 Conflict` when the order already has a pending or succeeded payment (only
+`failed`/`refunded` payments may be re-charged).
+
+### Payment Webhook (provider → server)
+
+```http
+POST /webhooks/payments
+Content-Type: application/json
+```
+
+Unauthenticated: the caller is the payment provider, not a signed-in user.
+Deliveries are deduplicated by the provider **event id** (`id`), so replays —
+even concurrent ones — settle the payment at most once.
+
+**Request Body**
+
+```json
+{
+  "id": "evt_provider_123",
+  "type": "payment.succeeded",
+  "data": { "externalRef": "ch_mock_..." }
+}
+```
+
+- `id`: provider event id (the idempotency key), not the payment id
+- `type`: `payment.succeeded` or `payment.failed`
+- `data.externalRef`: the charge reference returned by the charge call
+
+**Response** (200 OK)
+
+```json
+{
+  "payment": { "id": "uuid", "status": "succeeded", "...": "..." },
+  "applied": true
+}
+```
+
+`applied` is `false` when the event was a duplicate and nothing changed.
+Returns `404` when no payment matches `externalRef`.
+
 ## Health Check
 
 ### Check API Health
+
 ```http
 GET /health
 ```
 
 **Response**
+
 ```json
 {
   "status": "healthy",
@@ -491,6 +663,7 @@ GET /health
 ## Error Responses
 
 ### 400 Bad Request
+
 ```json
 {
   "error": "Validation failed",
@@ -504,6 +677,7 @@ GET /health
 ```
 
 ### 401 Unauthorized
+
 ```json
 {
   "error": "Unauthorized",
@@ -512,6 +686,7 @@ GET /health
 ```
 
 ### 403 Forbidden
+
 ```json
 {
   "error": "Forbidden",
@@ -520,6 +695,7 @@ GET /health
 ```
 
 ### 404 Not Found
+
 ```json
 {
   "error": "Not found",
@@ -528,6 +704,7 @@ GET /health
 ```
 
 ### 409 Conflict
+
 ```json
 {
   "error": "Conflict",
@@ -536,6 +713,7 @@ GET /health
 ```
 
 ### 422 Unprocessable Entity
+
 ```json
 {
   "error": "Business rule violation",
@@ -544,6 +722,7 @@ GET /health
 ```
 
 ### 500 Internal Server Error
+
 ```json
 {
   "error": "Internal server error",
@@ -567,6 +746,7 @@ GET /health
 ## Validation Rules
 
 ### Reservation
+
 - `guestName`: required, max 100 characters
 - `guestEmail`: required, valid email format
 - `guestPhone`: optional, max 20 characters
@@ -576,11 +756,13 @@ GET /health
 - `notes`: optional, max 500 characters
 
 ### Table
+
 - `tableNumber`: required, integer >= 1, unique per restaurant
 - `capacity`: required, integer between 1-20
 - `location`: optional, max 50 characters
 
 ### Restaurant
+
 - `name`: required, max 100 characters
 - `slug`: required, lowercase letters/numbers/hyphens, max 50 characters, globally unique, immutable
 - `timezone`: optional (defaults to `UTC`), non-empty
@@ -589,6 +771,7 @@ GET /health
 - `phone`: optional, max 30 characters
 
 ### Menu Item
+
 - `name`: required, max 100 characters, unique per restaurant
 - `description`: optional, max 500 characters
 - `category`: required, max 50 characters
@@ -596,6 +779,7 @@ GET /health
 - `isAvailable`: optional boolean (defaults to `true`)
 
 ### Order
+
 - `reservationId`: required
 - `items`: required, 1-100 entries
 - `items[].quantity`: required, integer between 1-100
