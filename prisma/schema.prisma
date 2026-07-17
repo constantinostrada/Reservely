@@ -235,15 +235,35 @@ model Payment {
   method       PaymentMethod
   status       PaymentStatus @default(PENDING)
   /// reference id from the external payment processor, if any
-  externalRef  String?       @map("external_ref")
+  externalRef  String?       @unique @map("external_ref")
   processedAt  DateTime?     @map("processed_at")
   createdAt    DateTime      @default(now()) @map("created_at")
   updatedAt    DateTime      @updatedAt @map("updated_at")
 
-  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  order      Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  restaurant Restaurant     @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  order      Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  events     PaymentEvent[]
 
   @@index([restaurantId, status])
   @@index([orderId])
   @@map("payments")
+}
+
+/// Webhook delivery ledger: one row per provider event ever applied.
+/// The unique event_id is what makes webhook handling idempotent — a
+/// replayed delivery fails the insert and is ignored.
+model PaymentEvent {
+  id           String   @id @default(cuid())
+  restaurantId String   @map("restaurant_id")
+  paymentId    String   @map("payment_id")
+  /// provider-assigned event id (the idempotency key)
+  eventId      String   @unique @map("event_id")
+  type         String
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId])
+  @@index([paymentId])
+  @@map("payment_events")
 }

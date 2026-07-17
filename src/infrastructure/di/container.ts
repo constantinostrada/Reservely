@@ -8,12 +8,18 @@ import { PrismaTableRepository } from '../repositories/PrismaTableRepository';
 import { PrismaUserRepository } from '../repositories/PrismaUserRepository';
 import { PrismaMenuItemRepository } from '../repositories/PrismaMenuItemRepository';
 import { PrismaOrderRepository } from '../repositories/PrismaOrderRepository';
+import { PrismaPaymentRepository } from '../repositories/PrismaPaymentRepository';
 import { IReservationRepository } from '@domain/repositories/IReservationRepository';
 import { IRestaurantRepository } from '@domain/repositories/IRestaurantRepository';
 import { ITableRepository } from '@domain/repositories/ITableRepository';
 import { IUserRepository } from '@domain/repositories/IUserRepository';
 import { IMenuItemRepository } from '@domain/repositories/IMenuItemRepository';
 import { IOrderRepository } from '@domain/repositories/IOrderRepository';
+import { IPaymentRepository } from '@domain/repositories/IPaymentRepository';
+
+// Payments
+import { MockPaymentProvider } from '../payments/MockPaymentProvider';
+import { IPaymentProvider } from '@application/ports/IPaymentProvider';
 
 // Auth
 import { JwtTokenService } from '../auth/JwtTokenService';
@@ -54,6 +60,8 @@ import { PlaceOrderUseCase } from '@application/use-cases/PlaceOrderUseCase';
 import { GetOrderUseCase } from '@application/use-cases/GetOrderUseCase';
 import { ListOrdersUseCase } from '@application/use-cases/ListOrdersUseCase';
 import { SplitBillUseCase } from '@application/use-cases/SplitBillUseCase';
+import { ChargeBillUseCase } from '@application/use-cases/ChargeBillUseCase';
+import { HandlePaymentWebhookUseCase } from '@application/use-cases/HandlePaymentWebhookUseCase';
 
 const DEFAULT_TOKEN_TTL_SECONDS = 60 * 60 * 24; // 24h
 
@@ -70,6 +78,8 @@ class Container {
   private userRepo?: IUserRepository;
   private menuItemRepo?: IMenuItemRepository;
   private orderRepo?: IOrderRepository;
+  private paymentRepo?: IPaymentRepository;
+  private paymentProvider?: IPaymentProvider;
   private tokenService?: ITokenService;
   private passwordHasher?: IPasswordHasher;
   private reservationDomainService?: ReservationDomainService;
@@ -128,6 +138,21 @@ class Container {
       this.orderRepo = new PrismaOrderRepository(this.prismaClient);
     }
     return this.orderRepo;
+  }
+
+  public getPaymentRepository(): IPaymentRepository {
+    if (!this.paymentRepo) {
+      this.paymentRepo = new PrismaPaymentRepository(this.prismaClient);
+    }
+    return this.paymentRepo;
+  }
+
+  // Payments
+  public getPaymentProvider(): IPaymentProvider {
+    if (!this.paymentProvider) {
+      this.paymentProvider = new MockPaymentProvider();
+    }
+    return this.paymentProvider;
   }
 
   // Auth services
@@ -309,6 +334,18 @@ class Container {
       this.getOrderRepository(),
       this.getBillSplitService()
     );
+  }
+
+  public getChargeBillUseCase(): ChargeBillUseCase {
+    return new ChargeBillUseCase(
+      this.getPaymentRepository(),
+      this.getOrderRepository(),
+      this.getPaymentProvider()
+    );
+  }
+
+  public getHandlePaymentWebhookUseCase(): HandlePaymentWebhookUseCase {
+    return new HandlePaymentWebhookUseCase(this.getPaymentRepository());
   }
 }
 
