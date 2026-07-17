@@ -207,6 +207,8 @@ model OrderItem {
   restaurantId   String   @map("restaurant_id")
   orderId        String   @map("order_id")
   menuItemId     String   @map("menu_item_id")
+  /// snapshot of the menu item name at order time (survives renames)
+  itemName       String   @map("item_name")
   quantity       Int
   /// snapshot of the menu item price at order time, integer cents
   unitPriceCents Int      @map("unit_price_cents")

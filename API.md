@@ -299,6 +299,154 @@ DELETE /tables/:id
 
 **Response**: `204 No Content`.
 
+## Menu Items
+
+All amounts are integer cents of the restaurant's currency.
+
+### List Menu Items
+```http
+GET /menu-items
+```
+
+**Response**
+```json
+{
+  "menuItems": [
+    {
+      "id": "cuid",
+      "restaurantId": "cuid",
+      "name": "Margherita",
+      "description": "Tomato, mozzarella, basil",
+      "category": "pizza",
+      "priceCents": 1250,
+      "isAvailable": true,
+      "createdAt": "2024-01-01T10:00:00.000Z",
+      "updatedAt": "2024-01-01T10:00:00.000Z"
+    }
+  ],
+  "total": 1
+}
+```
+
+### Create Menu Item
+```http
+POST /menu-items
+Content-Type: application/json
+```
+
+**Request Body**
+```json
+{
+  "name": "Margherita",
+  "description": "Tomato, mozzarella, basil",
+  "category": "pizza",
+  "priceCents": 1250,
+  "isAvailable": true
+}
+```
+
+**Response** (201 Created): the created menu item.
+
+Returns `409 Conflict` when the name already exists in the restaurant.
+
+### Get Menu Item by ID
+```http
+GET /menu-items/:id
+```
+
+### Update Menu Item
+```http
+PATCH /menu-items/:id
+Content-Type: application/json
+```
+
+All fields optional: `name`, `description`, `category`, `priceCents`, `isAvailable`.
+
+### Delete Menu Item
+```http
+DELETE /menu-items/:id
+```
+
+**Response**: `204 No Content`.
+
+Returns `409 Conflict` when the item is referenced by existing orders.
+
+## Orders
+
+Orders are placed against a live reservation. Each line item snapshots the
+menu item's name and price at order time, so later menu edits don't change
+past orders. All amounts are integer cents.
+
+### List Orders
+```http
+GET /orders
+GET /orders?reservationId=:reservationId
+```
+
+**Response**
+```json
+{
+  "orders": [ { "id": "...", "items": [ ... ], "totalCents": 5400 } ],
+  "total": 1
+}
+```
+
+### Place Order
+```http
+POST /orders
+Content-Type: application/json
+```
+
+**Request Body**
+```json
+{
+  "reservationId": "cuid",
+  "items": [
+    { "menuItemId": "cuid", "quantity": 2 },
+    { "menuItemId": "cuid", "quantity": 3, "notes": "no onions" }
+  ],
+  "tipCents": 500,
+  "notes": "anniversary dinner"
+}
+```
+
+**Response** (201 Created)
+```json
+{
+  "id": "uuid",
+  "restaurantId": "cuid",
+  "reservationId": "cuid",
+  "tableId": "cuid",
+  "status": "open",
+  "items": [
+    {
+      "id": "uuid",
+      "menuItemId": "cuid",
+      "itemName": "Tagliatelle al ragù",
+      "quantity": 2,
+      "unitPriceCents": 1550,
+      "lineTotalCents": 3100
+    }
+  ],
+  "subtotalCents": 3100,
+  "taxCents": 0,
+  "tipCents": 500,
+  "totalCents": 3600,
+  "notes": "anniversary dinner",
+  "createdAt": "2024-01-10T10:00:00.000Z",
+  "updatedAt": "2024-01-10T10:00:00.000Z"
+}
+```
+
+Returns `404 Not Found` for an unknown reservation or menu item,
+`422 Unprocessable Entity` when the reservation is cancelled/completed/no-show
+or a menu item is unavailable.
+
+### Get Order by ID
+```http
+GET /orders/:id
+```
+
 ## Health Check
 
 ### Check API Health
@@ -415,6 +563,21 @@ GET /health
 - `address`: optional, max 200 characters
 - `phone`: optional, max 30 characters
 
+### Menu Item
+- `name`: required, max 100 characters, unique per restaurant
+- `description`: optional, max 500 characters
+- `category`: required, max 50 characters
+- `priceCents`: required, non-negative integer (cents)
+- `isAvailable`: optional boolean (defaults to `true`)
+
+### Order
+- `reservationId`: required
+- `items`: required, 1-100 entries
+- `items[].quantity`: required, integer between 1-100
+- `items[].notes`: optional, max 255 characters
+- `tipCents`: optional, non-negative integer (cents)
+- `notes`: optional, max 500 characters
+
 ## Business Rules
 
 1. Reservations can only be made during operating hours (11:00 AM - 10:00 PM)
@@ -423,3 +586,7 @@ GET /health
 4. Cancelled reservations cannot be confirmed
 5. Completed reservations cannot be cancelled
 6. Only confirmed reservations can be completed
+7. Orders can only be placed against a live reservation (pending, confirmed or seated)
+8. Order items snapshot the menu item's name and price at order time
+9. Line totals, subtotal and total are always integer cents (total = subtotal + tax + tip)
+10. Unavailable menu items cannot be ordered; items referenced by orders cannot be deleted

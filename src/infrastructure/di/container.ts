@@ -6,10 +6,14 @@ import { PrismaReservationRepository } from '../repositories/PrismaReservationRe
 import { PrismaRestaurantRepository } from '../repositories/PrismaRestaurantRepository';
 import { PrismaTableRepository } from '../repositories/PrismaTableRepository';
 import { PrismaUserRepository } from '../repositories/PrismaUserRepository';
+import { PrismaMenuItemRepository } from '../repositories/PrismaMenuItemRepository';
+import { PrismaOrderRepository } from '../repositories/PrismaOrderRepository';
 import { IReservationRepository } from '@domain/repositories/IReservationRepository';
 import { IRestaurantRepository } from '@domain/repositories/IRestaurantRepository';
 import { ITableRepository } from '@domain/repositories/ITableRepository';
 import { IUserRepository } from '@domain/repositories/IUserRepository';
+import { IMenuItemRepository } from '@domain/repositories/IMenuItemRepository';
+import { IOrderRepository } from '@domain/repositories/IOrderRepository';
 
 // Auth
 import { JwtTokenService } from '../auth/JwtTokenService';
@@ -40,6 +44,14 @@ import { UpdateRestaurantUseCase } from '@application/use-cases/UpdateRestaurant
 import { DeleteRestaurantUseCase } from '@application/use-cases/DeleteRestaurantUseCase';
 import { LoginUseCase } from '@application/use-cases/LoginUseCase';
 import { GetCurrentUserUseCase } from '@application/use-cases/GetCurrentUserUseCase';
+import { CreateMenuItemUseCase } from '@application/use-cases/CreateMenuItemUseCase';
+import { GetMenuItemUseCase } from '@application/use-cases/GetMenuItemUseCase';
+import { ListMenuItemsUseCase } from '@application/use-cases/ListMenuItemsUseCase';
+import { UpdateMenuItemUseCase } from '@application/use-cases/UpdateMenuItemUseCase';
+import { DeleteMenuItemUseCase } from '@application/use-cases/DeleteMenuItemUseCase';
+import { PlaceOrderUseCase } from '@application/use-cases/PlaceOrderUseCase';
+import { GetOrderUseCase } from '@application/use-cases/GetOrderUseCase';
+import { ListOrdersUseCase } from '@application/use-cases/ListOrdersUseCase';
 
 const DEFAULT_TOKEN_TTL_SECONDS = 60 * 60 * 24; // 24h
 
@@ -54,6 +66,8 @@ class Container {
   private restaurantRepo?: IRestaurantRepository;
   private tableRepo?: ITableRepository;
   private userRepo?: IUserRepository;
+  private menuItemRepo?: IMenuItemRepository;
+  private orderRepo?: IOrderRepository;
   private tokenService?: ITokenService;
   private passwordHasher?: IPasswordHasher;
   private reservationDomainService?: ReservationDomainService;
@@ -97,6 +111,20 @@ class Container {
       this.userRepo = new PrismaUserRepository(this.prismaClient);
     }
     return this.userRepo;
+  }
+
+  public getMenuItemRepository(): IMenuItemRepository {
+    if (!this.menuItemRepo) {
+      this.menuItemRepo = new PrismaMenuItemRepository(this.prismaClient);
+    }
+    return this.menuItemRepo;
+  }
+
+  public getOrderRepository(): IOrderRepository {
+    if (!this.orderRepo) {
+      this.orderRepo = new PrismaOrderRepository(this.prismaClient);
+    }
+    return this.orderRepo;
   }
 
   // Auth services
@@ -228,6 +256,42 @@ class Container {
 
   public getGetCurrentUserUseCase(): GetCurrentUserUseCase {
     return new GetCurrentUserUseCase(this.getUserRepository());
+  }
+
+  public getCreateMenuItemUseCase(): CreateMenuItemUseCase {
+    return new CreateMenuItemUseCase(this.getMenuItemRepository());
+  }
+
+  public getGetMenuItemUseCase(): GetMenuItemUseCase {
+    return new GetMenuItemUseCase(this.getMenuItemRepository());
+  }
+
+  public getListMenuItemsUseCase(): ListMenuItemsUseCase {
+    return new ListMenuItemsUseCase(this.getMenuItemRepository());
+  }
+
+  public getUpdateMenuItemUseCase(): UpdateMenuItemUseCase {
+    return new UpdateMenuItemUseCase(this.getMenuItemRepository());
+  }
+
+  public getDeleteMenuItemUseCase(): DeleteMenuItemUseCase {
+    return new DeleteMenuItemUseCase(this.getMenuItemRepository());
+  }
+
+  public getPlaceOrderUseCase(): PlaceOrderUseCase {
+    return new PlaceOrderUseCase(
+      this.getOrderRepository(),
+      this.getReservationRepository(),
+      this.getMenuItemRepository()
+    );
+  }
+
+  public getGetOrderUseCase(): GetOrderUseCase {
+    return new GetOrderUseCase(this.getOrderRepository());
+  }
+
+  public getListOrdersUseCase(): ListOrdersUseCase {
+    return new ListOrdersUseCase(this.getOrderRepository());
   }
 }
 

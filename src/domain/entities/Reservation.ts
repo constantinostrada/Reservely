@@ -174,6 +174,15 @@ export class Reservation {
     return this.props.status.blocksTable();
   }
 
+  /**
+   * Orders can only be placed against a live reservation — one that still
+   * holds (or will hold) its table. Cancelled, completed and no-show
+   * reservations cannot take orders.
+   */
+  public canAcceptOrders(): boolean {
+    return this.props.status.blocksTable();
+  }
+
   public conflictsWith(slot: TimeSlot): boolean {
     return this.blocksTable() && this._slot.overlaps(slot);
   }
