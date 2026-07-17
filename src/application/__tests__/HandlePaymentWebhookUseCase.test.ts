@@ -1,11 +1,21 @@
 import { HandlePaymentWebhookUseCase } from '../use-cases/HandlePaymentWebhookUseCase';
+import { IEventPublisher } from '../ports/IEventPublisher';
 import {
   IPaymentRepository,
   SettleResult,
 } from '@domain/repositories/IPaymentRepository';
+import { ReservelyDomainEvent } from '@domain/events/DomainEvent';
 import { Payment } from '@domain/entities/Payment';
 import { PaymentStatus } from '@domain/value-objects/PaymentStatus';
 import { EntityNotFoundException } from '@domain/exceptions/DomainException';
+
+class RecordingEventPublisher implements IEventPublisher {
+  public events: ReservelyDomainEvent[] = [];
+
+  publish(event: ReservelyDomainEvent): void {
+    this.events.push(event);
+  }
+}
 
 /**
  * In-memory stand-in for PrismaPaymentRepository: the processed-event
@@ -64,6 +74,7 @@ class InMemoryPaymentRepository implements IPaymentRepository {
 describe('HandlePaymentWebhookUseCase', () => {
   let repository: InMemoryPaymentRepository;
   let useCase: HandlePaymentWebhookUseCase;
+  let publisher: RecordingEventPublisher;
 
   const makePendingPayment = () =>
     new Payment({
@@ -86,7 +97,8 @@ describe('HandlePaymentWebhookUseCase', () => {
   beforeEach(async () => {
     repository = new InMemoryPaymentRepository();
     await repository.save(makePendingPayment());
-    useCase = new HandlePaymentWebhookUseCase(repository);
+    publisher = new RecordingEventPublisher();
+    useCase = new HandlePaymentWebhookUseCase(repository, publisher);
   });
 
   it('applies a payment.succeeded event', async () => {
@@ -153,5 +165,33 @@ describe('HandlePaymentWebhookUseCase', () => {
     await expect(
       useCase.execute({ ...succeededEvent, externalRef: 'ch_unknown' })
     ).rejects.toThrow(EntityNotFoundException);
+  });
+
+  describe('event publication', () => {
+    it('publishes payment.succeeded when the settlement is applied', async () => {
+      await useCase.execute(succeededEvent);
+
+      expect(publisher.events).toHaveLength(1);
+      expect(publisher.events[0]).toMatchObject({
+        type: 'payment.succeeded',
+        paymentId: 'pay-1',
+        orderId: 'order-1',
+        restaurantId: 'rest-1',
+        amountCents: 3000,
+      });
+    });
+
+    it('does not publish again for a replayed event', async () => {
+      await useCase.execute(succeededEvent);
+      await useCase.execute(succeededEvent);
+
+      expect(publisher.events).toHaveLength(1);
+    });
+
+    it('does not publish for a failed payment', async () => {
+      await useCase.execute({ ...succeededEvent, type: 'payment.failed' });
+
+      expect(publisher.events).toHaveLength(0);
+    });
   });
 });

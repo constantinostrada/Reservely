@@ -5,6 +5,7 @@ import {
   PaymentWebhookResultDTO,
 } from '../dtos/PaymentDTO';
 import { PaymentMapper } from '../mappers/PaymentMapper';
+import { IEventPublisher } from '../ports/IEventPublisher';
 
 /**
  * Applies a payment provider webhook event exactly once.
@@ -20,7 +21,10 @@ import { PaymentMapper } from '../mappers/PaymentMapper';
  * charge reference rather than an authenticated user.
  */
 export class HandlePaymentWebhookUseCase {
-  constructor(private readonly paymentRepository: IPaymentRepository) {}
+  constructor(
+    private readonly paymentRepository: IPaymentRepository,
+    private readonly eventPublisher: IEventPublisher
+  ) {}
 
   async execute(
     event: PaymentWebhookEventDTO
@@ -49,6 +53,20 @@ export class HandlePaymentWebhookUseCase {
       event.eventId,
       event.type
     );
+
+    // Publish only when this delivery actually applied the settlement, so
+    // webhook replays never produce duplicate notifications. Fire-and-forget:
+    // subscribers run off the request path and cannot fail the webhook.
+    if (result.applied && event.type === 'payment.succeeded') {
+      this.eventPublisher.publish({
+        type: 'payment.succeeded',
+        occurredAt: new Date(),
+        paymentId: result.payment.id,
+        orderId: result.payment.orderId,
+        restaurantId: result.payment.restaurantId,
+        amountCents: result.payment.amountCents,
+      });
+    }
 
     return {
       payment: PaymentMapper.toDTO(result.payment),

@@ -21,6 +21,13 @@ import { IPaymentRepository } from '@domain/repositories/IPaymentRepository';
 import { MockPaymentProvider } from '../payments/MockPaymentProvider';
 import { IPaymentProvider } from '@application/ports/IPaymentProvider';
 
+// Events & Notifications
+import { InProcessEventDispatcher } from '../events/InProcessEventDispatcher';
+import { MockNotificationSender } from '../notifications/MockNotificationSender';
+import { IEventPublisher } from '@application/ports/IEventPublisher';
+import { INotificationSender } from '@application/ports/INotificationSender';
+import { NotificationDispatcher } from '@application/services/NotificationDispatcher';
+
 // Auth
 import { JwtTokenService } from '../auth/JwtTokenService';
 import { ScryptPasswordHasher } from '../auth/ScryptPasswordHasher';
@@ -80,6 +87,8 @@ class Container {
   private orderRepo?: IOrderRepository;
   private paymentRepo?: IPaymentRepository;
   private paymentProvider?: IPaymentProvider;
+  private eventDispatcher?: InProcessEventDispatcher;
+  private notificationSender?: INotificationSender;
   private tokenService?: ITokenService;
   private passwordHasher?: IPasswordHasher;
   private reservationDomainService?: ReservationDomainService;
@@ -153,6 +162,27 @@ class Container {
       this.paymentProvider = new MockPaymentProvider();
     }
     return this.paymentProvider;
+  }
+
+  // Events & Notifications
+  public getNotificationSender(): INotificationSender {
+    if (!this.notificationSender) {
+      this.notificationSender = new MockNotificationSender();
+    }
+    return this.notificationSender;
+  }
+
+  public getEventPublisher(): IEventPublisher {
+    if (!this.eventDispatcher) {
+      this.eventDispatcher = new InProcessEventDispatcher();
+      const notifications = new NotificationDispatcher(
+        this.getNotificationSender(),
+        this.getOrderRepository(),
+        this.getReservationRepository()
+      );
+      this.eventDispatcher.subscribe((event) => notifications.handle(event));
+    }
+    return this.eventDispatcher;
   }
 
   // Auth services
@@ -234,7 +264,10 @@ class Container {
   }
 
   public getConfirmReservationUseCase(): ConfirmReservationUseCase {
-    return new ConfirmReservationUseCase(this.getReservationRepository());
+    return new ConfirmReservationUseCase(
+      this.getReservationRepository(),
+      this.getEventPublisher()
+    );
   }
 
   public getCancelReservationUseCase(): CancelReservationUseCase {
@@ -345,7 +378,10 @@ class Container {
   }
 
   public getHandlePaymentWebhookUseCase(): HandlePaymentWebhookUseCase {
-    return new HandlePaymentWebhookUseCase(this.getPaymentRepository());
+    return new HandlePaymentWebhookUseCase(
+      this.getPaymentRepository(),
+      this.getEventPublisher()
+    );
   }
 }
 
