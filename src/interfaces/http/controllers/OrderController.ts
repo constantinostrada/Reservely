@@ -17,4 +17,9 @@ export class OrderController {
     const useCase = container.getListOrdersUseCase();
     return await useCase.execute(auth, { reservationId });
   }
+
+  async splitBill(id: string, ways: number, auth: TenantContext) {
+    const useCase = container.getSplitBillUseCase();
+    return await useCase.execute(id, ways, auth);
+  }
 }

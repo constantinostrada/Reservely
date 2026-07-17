@@ -31,3 +31,13 @@ export const placeOrderSchema = z.object({
 });
 
 export type PlaceOrderInput = z.infer<typeof placeOrderSchema>;
+
+export const splitBillSchema = z.object({
+  ways: z.coerce
+    .number()
+    .int('Ways must be an integer')
+    .min(1, 'A bill must be split into at least 1 part')
+    .max(50, 'A bill cannot be split more than 50 ways'),
+});
+
+export type SplitBillInput = z.infer<typeof splitBillSchema>;

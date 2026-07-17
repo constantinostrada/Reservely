@@ -24,6 +24,7 @@ import { IPasswordHasher } from '@application/ports/IPasswordHasher';
 // Domain Services
 import { ReservationDomainService } from '@domain/services/ReservationDomainService';
 import { AvailabilityService } from '@domain/services/AvailabilityService';
+import { BillSplitService } from '@domain/services/BillSplitService';
 
 // Use Cases
 import { CreateReservationUseCase } from '@application/use-cases/CreateReservationUseCase';
@@ -52,6 +53,7 @@ import { DeleteMenuItemUseCase } from '@application/use-cases/DeleteMenuItemUseC
 import { PlaceOrderUseCase } from '@application/use-cases/PlaceOrderUseCase';
 import { GetOrderUseCase } from '@application/use-cases/GetOrderUseCase';
 import { ListOrdersUseCase } from '@application/use-cases/ListOrdersUseCase';
+import { SplitBillUseCase } from '@application/use-cases/SplitBillUseCase';
 
 const DEFAULT_TOKEN_TTL_SECONDS = 60 * 60 * 24; // 24h
 
@@ -72,6 +74,7 @@ class Container {
   private passwordHasher?: IPasswordHasher;
   private reservationDomainService?: ReservationDomainService;
   private availabilityService?: AvailabilityService;
+  private billSplitService?: BillSplitService;
 
   private constructor() {
     this.prismaClient = prisma;
@@ -168,6 +171,13 @@ class Container {
       this.availabilityService = new AvailabilityService();
     }
     return this.availabilityService;
+  }
+
+  public getBillSplitService(): BillSplitService {
+    if (!this.billSplitService) {
+      this.billSplitService = new BillSplitService();
+    }
+    return this.billSplitService;
   }
 
   // Use Cases
@@ -292,6 +302,13 @@ class Container {
 
   public getListOrdersUseCase(): ListOrdersUseCase {
     return new ListOrdersUseCase(this.getOrderRepository());
+  }
+
+  public getSplitBillUseCase(): SplitBillUseCase {
+    return new SplitBillUseCase(
+      this.getOrderRepository(),
+      this.getBillSplitService()
+    );
   }
 }
 

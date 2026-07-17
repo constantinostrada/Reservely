@@ -44,3 +44,14 @@ export interface OrderListDTO {
   orders: OrderDTO[];
   total: number;
 }
+
+export interface BillSplitDTO {
+  orderId: string;
+  subtotalCents: number;
+  taxCents: number;
+  tipCents: number;
+  totalCents: number;
+  ways: number;
+  /** One integer-cent share per diner; the shares sum to totalCents. */
+  shareCents: number[];
+}

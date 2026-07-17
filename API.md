@@ -447,6 +447,31 @@ or a menu item is unavailable.
 GET /orders/:id
 ```
 
+### Split Bill
+```http
+GET /orders/:id/split?ways=3
+```
+
+Splits the order's total among `ways` diners. Shares are integer cents and
+always sum back to the exact total: every share is `floor(total / ways)` and
+the remainder is distributed one cent at a time to the first shares
+(deterministic — the same input always yields the same shares).
+
+**Response**
+```json
+{
+  "orderId": "uuid",
+  "subtotalCents": 1000,
+  "taxCents": 0,
+  "tipCents": 0,
+  "totalCents": 1000,
+  "ways": 3,
+  "shareCents": [334, 333, 333]
+}
+```
+
+- `ways`: required, integer between 1-50
+
 ## Health Check
 
 ### Check API Health
@@ -590,3 +615,4 @@ GET /health
 8. Order items snapshot the menu item's name and price at order time
 9. Line totals, subtotal and total are always integer cents (total = subtotal + tax + tip)
 10. Unavailable menu items cannot be ordered; items referenced by orders cannot be deleted
+11. Bill splits are exact: the integer-cent shares always sum back to the order total, with the remainder cents assigned deterministically to the first shares
