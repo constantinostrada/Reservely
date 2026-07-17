@@ -38,6 +38,14 @@ export class PrismaRestaurantRepository implements IRestaurantRepository {
     return restaurant ? this.toDomain(restaurant) : null;
   }
 
+  async findAll(): Promise<Restaurant[]> {
+    const restaurants = await this.prisma.restaurant.findMany({
+      orderBy: { name: 'asc' },
+    });
+
+    return restaurants.map((restaurant) => this.toDomain(restaurant));
+  }
+
   async update(restaurant: Restaurant): Promise<Restaurant> {
     const updated = await this.prisma.restaurant.update({
       where: { id: restaurant.id },

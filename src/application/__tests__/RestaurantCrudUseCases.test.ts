@@ -36,6 +36,7 @@ describe('restaurant CRUD use cases', () => {
       save: jest.fn(),
       findById: jest.fn(),
       findBySlug: jest.fn(),
+      findAll: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
     };

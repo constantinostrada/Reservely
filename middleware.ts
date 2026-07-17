@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AUTH_COOKIE_NAME } from '@/src/interfaces/http/authCookie';
 
+// Exact-match public pages.
 const PUBLIC_PATHS = ['/login'];
+// Public page trees open to guests (the customer-facing booking flow).
+const PUBLIC_PREFIXES = ['/book'];
 
 /**
  * Page-level session guard. Only checks that the auth cookie is present —
@@ -12,7 +15,11 @@ const PUBLIC_PATHS = ['/login'];
 export function middleware(request: NextRequest): NextResponse {
   const { pathname } = request.nextUrl;
   const hasSession = Boolean(request.cookies.get(AUTH_COOKIE_NAME)?.value);
-  const isPublic = PUBLIC_PATHS.includes(pathname);
+  const isPublic =
+    PUBLIC_PATHS.includes(pathname) ||
+    PUBLIC_PREFIXES.some(
+      (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+    );
 
   if (!hasSession && !isPublic) {
     const loginUrl = new URL('/login', request.url);
@@ -22,7 +29,9 @@ export function middleware(request: NextRequest): NextResponse {
     return NextResponse.redirect(loginUrl);
   }
 
-  if (hasSession && isPublic) {
+  // A logged-in user has no reason to sit on /login; send them home. The
+  // booking flow (PUBLIC_PREFIXES) stays open to everyone, signed in or not.
+  if (hasSession && PUBLIC_PATHS.includes(pathname)) {
     return NextResponse.redirect(new URL('/', request.url));
   }
 

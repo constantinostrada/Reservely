@@ -192,6 +192,7 @@ describe('reservation lifecycle: create → cancel → rebook', () => {
       save: jest.fn(),
       findById: jest.fn().mockResolvedValue(restaurant),
       findBySlug: jest.fn(),
+      findAll: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
     } as jest.Mocked<IRestaurantRepository>;

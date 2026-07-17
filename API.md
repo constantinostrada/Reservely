@@ -278,6 +278,52 @@ live reservation is omitted.
 }
 ```
 
+## Public Booking
+
+Unauthenticated, customer-facing endpoints for the guest booking flow (F3).
+No session is required; the restaurant is always named in the URL. Availability
+and reservation creation reuse the same engine as the tenant-scoped endpoints,
+so a slot taken between viewing and booking fails with `409 Conflict` rather
+than double-booking.
+
+### List Restaurants (public directory)
+
+```http
+GET /public/restaurants
+```
+
+Returns every restaurant so a guest can pick one to book at.
+
+**Response** (200 OK) — same shape as `GET /restaurants` (`{ restaurants, total }`).
+
+### Get Restaurant (public)
+
+```http
+GET /public/restaurants/:restaurantId
+```
+
+**Response** (200 OK) — a single `RestaurantDTO`. `404` if it does not exist.
+
+### Get Availability (public)
+
+```http
+GET /public/restaurants/:restaurantId/availability?date=2024-01-15&partySize=4
+```
+
+Same query params and response shape as `GET /availability`, but scoped to the
+restaurant in the path instead of the authenticated tenant.
+
+### Create Reservation (public)
+
+```http
+POST /public/restaurants/:restaurantId/reservations
+```
+
+Body and response are identical to `POST /reservations` (guest details + local
+`date`/`time` + `partySize`, optional `tableId`/`notes`). The reservation use
+case places a transactional slot hold; if the slot was taken since availability
+was fetched, responds `409 Conflict`.
+
 ## Tables
 
 ### List All Tables

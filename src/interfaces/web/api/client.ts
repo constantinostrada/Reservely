@@ -18,6 +18,13 @@ import type {
   ReservationDTO,
   ReservationListDTO,
 } from '@application/dtos/ReservationDTO';
+import type { MenuItemListDTO } from '@application/dtos/MenuItemDTO';
+import type {
+  BillSplitDTO,
+  OrderDTO,
+  OrderListDTO,
+  PlaceOrderDTO,
+} from '@application/dtos/OrderDTO';
 import type {
   CreateRestaurantDTO,
   RestaurantDTO,
@@ -96,6 +103,43 @@ export const api = {
       request<AvailabilityDTO>('/api/availability', {
         query: { date: query.date, partySize: query.partySize },
       }),
+  },
+
+  menuItems: {
+    list: () => request<MenuItemListDTO>('/api/menu-items'),
+  },
+
+  orders: {
+    list: (reservationId?: string) =>
+      request<OrderListDTO>('/api/orders', {
+        query: reservationId ? { reservationId } : undefined,
+      }),
+    get: (id: string) => request<OrderDTO>(`/api/orders/${id}`),
+    place: (input: PlaceOrderDTO) =>
+      request<OrderDTO>('/api/orders', { method: 'POST', body: input }),
+    split: (id: string, ways: number) =>
+      request<BillSplitDTO>(`/api/orders/${id}/split`, {
+        query: { ways },
+      }),
+  },
+
+  // Unauthenticated, customer-facing booking flow. The restaurant is always
+  // named in the URL rather than derived from a session.
+  public: {
+    listRestaurants: () =>
+      request<RestaurantListDTO>('/api/public/restaurants'),
+    getRestaurant: (restaurantId: string) =>
+      request<RestaurantDTO>(`/api/public/restaurants/${restaurantId}`),
+    availability: (restaurantId: string, query: GetAvailabilityDTO) =>
+      request<AvailabilityDTO>(
+        `/api/public/restaurants/${restaurantId}/availability`,
+        { query: { date: query.date, partySize: query.partySize } }
+      ),
+    reserve: (restaurantId: string, input: CreateReservationDTO) =>
+      request<ReservationDTO>(
+        `/api/public/restaurants/${restaurantId}/reservations`,
+        { method: 'POST', body: input }
+      ),
   },
 };
 

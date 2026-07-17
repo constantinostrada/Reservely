@@ -9,6 +9,12 @@ export interface IRestaurantRepository {
    */
   findById(id: string): Promise<Restaurant | null>;
   findBySlug(slug: string): Promise<Restaurant | null>;
+  /**
+   * Every restaurant, for the public booking directory. This is the one
+   * cross-tenant read in the system and is only ever reached through the
+   * unauthenticated public endpoints, never through a tenant-scoped path.
+   */
+  findAll(): Promise<Restaurant[]>;
   update(restaurant: Restaurant): Promise<Restaurant>;
   delete(id: string): Promise<void>;
 }

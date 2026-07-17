@@ -1,0 +1,336 @@
+/* Customer-facing booking flow. Kept separate from the admin ui.module.css:
+   this is the public storefront, not the back office. */
+
+.page {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 4rem;
+}
+
+.brandBar {
+  border-bottom: 1px solid #e7e7ef;
+  background: #ffffff;
+}
+
+.brandBarInner {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 1rem 1.25rem;
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+}
+
+.brand {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #1a1a2e;
+  text-decoration: none;
+}
+
+.brandTag {
+  font-size: 0.8rem;
+  color: #8a8a9a;
+}
+
+.hero {
+  margin-bottom: 2rem;
+}
+
+.title {
+  font-size: 1.9rem;
+  color: #1a1a2e;
+  margin-bottom: 0.4rem;
+}
+
+.subtitle {
+  color: #6b6b7b;
+  font-size: 1rem;
+}
+
+.back {
+  display: inline-block;
+  margin-bottom: 1rem;
+  color: #3742a8;
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.back:hover {
+  text-decoration: underline;
+}
+
+/* Restaurant directory */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.restaurantCard {
+  display: block;
+  text-align: left;
+  background: #ffffff;
+  border: 1px solid #e7e7ef;
+  border-radius: 14px;
+  padding: 1.25rem;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.restaurantCard:hover {
+  border-color: #3742a8;
+  box-shadow: 0 4px 14px rgba(55, 66, 168, 0.1);
+}
+
+.restaurantName {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1a1a2e;
+  margin-bottom: 0.35rem;
+}
+
+.restaurantMeta {
+  font-size: 0.85rem;
+  color: #6b6b7b;
+  line-height: 1.5;
+}
+
+/* Search controls */
+.searchCard {
+  background: #ffffff;
+  border: 1px solid #e7e7ef;
+  border-radius: 14px;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-end;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #444;
+}
+
+.input,
+.select {
+  border: 1px solid #d5d5dd;
+  border-radius: 8px;
+  padding: 0.55rem 0.7rem;
+  font-size: 0.95rem;
+  background: #ffffff;
+  min-width: 160px;
+}
+
+.input:focus,
+.select:focus {
+  outline: 2px solid #3742a8;
+  outline-offset: -1px;
+  border-color: transparent;
+}
+
+/* Slots */
+.sectionTitle {
+  font-size: 1.05rem;
+  color: #1a1a2e;
+  margin: 1.5rem 0 0.85rem;
+}
+
+.slotGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 0.6rem;
+}
+
+.slot {
+  border: 1px solid #c3c9f0;
+  background: #ffffff;
+  color: #3742a8;
+  border-radius: 10px;
+  padding: 0.7rem 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.slot:hover {
+  background: #eef1ff;
+}
+
+.slotSelected {
+  composes: slot;
+  background: #3742a8;
+  color: #ffffff;
+  border-color: #3742a8;
+}
+
+/* Booking form */
+.bookCard {
+  background: #ffffff;
+  border: 1px solid #e7e7ef;
+  border-radius: 14px;
+  padding: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.bookCardTitle {
+  font-size: 1.1rem;
+  color: #1a1a2e;
+  margin-bottom: 0.25rem;
+}
+
+.bookCardMeta {
+  color: #6b6b7b;
+  font-size: 0.9rem;
+  margin-bottom: 1.25rem;
+}
+
+.formRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 1rem;
+}
+
+@media (max-width: 600px) {
+  .formRow {
+    grid-template-columns: 1fr;
+  }
+}
+
+.formField {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 1rem;
+}
+
+.actions {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+
+.primaryButton {
+  background: #3742a8;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.6rem 1.1rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primaryButton:hover:not(:disabled) {
+  background: #2e388f;
+}
+
+.secondaryButton {
+  background: #ffffff;
+  color: #444;
+  border: 1px solid #d5d5dd;
+  border-radius: 8px;
+  padding: 0.6rem 1.1rem;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.primaryButton:disabled,
+.secondaryButton:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* States */
+.stateMessage {
+  color: #6b6b7b;
+}
+
+.empty {
+  background: #ffffff;
+  border: 1px dashed #d5d5dd;
+  border-radius: 14px;
+  padding: 2.5rem;
+  text-align: center;
+  color: #6b6b7b;
+}
+
+.errorBox {
+  background: #fdeaea;
+  color: #b03030;
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.errorBox ul {
+  margin: 0.4rem 0 0 1.1rem;
+}
+
+/* "No longer available" — the concurrency case */
+.unavailable {
+  background: #fdf3e0;
+  color: #8a5a12;
+  border: 1px solid #f0d9a8;
+  border-radius: 10px;
+  padding: 0.9rem 1rem;
+  font-size: 0.92rem;
+  margin-bottom: 1.25rem;
+}
+
+.unavailable strong {
+  display: block;
+  margin-bottom: 0.15rem;
+}
+
+/* Confirmation */
+.confirmCard {
+  background: #ffffff;
+  border: 1px solid #cfe8d4;
+  border-radius: 14px;
+  padding: 2rem;
+  text-align: center;
+}
+
+.confirmBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 999px;
+  background: #e6f6ea;
+  color: #1f8a3b;
+  font-size: 1.6rem;
+  margin-bottom: 1rem;
+}
+
+.confirmTitle {
+  font-size: 1.3rem;
+  color: #1a1a2e;
+  margin-bottom: 0.35rem;
+}
+
+.confirmSummary {
+  color: #4a4a5a;
+  font-size: 0.98rem;
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+}
+
+.confirmSummary strong {
+  color: #1a1a2e;
+}

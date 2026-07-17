@@ -54,6 +54,8 @@ import { DeleteTableUseCase } from '@application/use-cases/DeleteTableUseCase';
 import { CreateRestaurantUseCase } from '@application/use-cases/CreateRestaurantUseCase';
 import { GetRestaurantUseCase } from '@application/use-cases/GetRestaurantUseCase';
 import { ListRestaurantsUseCase } from '@application/use-cases/ListRestaurantsUseCase';
+import { ListPublicRestaurantsUseCase } from '@application/use-cases/ListPublicRestaurantsUseCase';
+import { GetPublicRestaurantUseCase } from '@application/use-cases/GetPublicRestaurantUseCase';
 import { UpdateRestaurantUseCase } from '@application/use-cases/UpdateRestaurantUseCase';
 import { DeleteRestaurantUseCase } from '@application/use-cases/DeleteRestaurantUseCase';
 import { LoginUseCase } from '@application/use-cases/LoginUseCase';
@@ -304,6 +306,14 @@ class Container {
 
   public getListRestaurantsUseCase(): ListRestaurantsUseCase {
     return new ListRestaurantsUseCase(this.getRestaurantRepository());
+  }
+
+  public getListPublicRestaurantsUseCase(): ListPublicRestaurantsUseCase {
+    return new ListPublicRestaurantsUseCase(this.getRestaurantRepository());
+  }
+
+  public getGetPublicRestaurantUseCase(): GetPublicRestaurantUseCase {
+    return new GetPublicRestaurantUseCase(this.getRestaurantRepository());
   }
 
   public getUpdateRestaurantUseCase(): UpdateRestaurantUseCase {

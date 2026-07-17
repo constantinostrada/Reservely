@@ -1,0 +1,168 @@
+/* Ordering + bill-split UI. Reuses ui.module.css for cards/buttons/tables;
+   this file only adds the pieces those don't cover. */
+
+.menuCategory {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #8a8a9a;
+  margin: 1.25rem 0 0.5rem;
+}
+
+.menuRow {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.65rem 0;
+  border-bottom: 1px solid #efeff3;
+}
+
+.menuRow:last-child {
+  border-bottom: none;
+}
+
+.menuInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.menuName {
+  font-weight: 600;
+  color: #1a1a2e;
+}
+
+.menuDesc {
+  font-size: 0.82rem;
+  color: #8a8a9a;
+  margin-top: 0.15rem;
+}
+
+.menuPrice {
+  font-variant-numeric: tabular-nums;
+  color: #4a4a5a;
+  min-width: 72px;
+  text-align: right;
+}
+
+.unavailable {
+  font-size: 0.72rem;
+  color: #b06a12;
+  margin-left: 0.4rem;
+}
+
+/* Quantity stepper */
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.stepButton {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid #c3c9f0;
+  background: #ffffff;
+  color: #3742a8;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.stepButton:hover:not(:disabled) {
+  background: #eef1ff;
+}
+
+.stepButton:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.stepCount {
+  min-width: 20px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+/* Totals block */
+.totals {
+  margin-top: 1rem;
+  border-top: 1px solid #e2e2e2;
+  padding-top: 0.75rem;
+}
+
+.totalRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.2rem 0;
+  font-size: 0.9rem;
+  color: #4a4a5a;
+}
+
+.totalRow span:last-child {
+  font-variant-numeric: tabular-nums;
+}
+
+.grandTotal {
+  font-weight: 700;
+  color: #1a1a2e;
+  font-size: 1rem;
+  border-top: 1px solid #efeff3;
+  margin-top: 0.35rem;
+  padding-top: 0.55rem;
+}
+
+/* Bill split */
+.splitControls {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.75rem;
+  margin: 0.5rem 0 1rem;
+}
+
+.shareList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 0.6rem;
+}
+
+.shareCard {
+  border: 1px solid #e2e2e2;
+  border-radius: 10px;
+  padding: 0.7rem 0.85rem;
+  background: #fafafe;
+}
+
+.shareLabel {
+  font-size: 0.72rem;
+  color: #8a8a9a;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.shareAmount {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1a1a2e;
+  font-variant-numeric: tabular-nums;
+  margin-top: 0.15rem;
+}
+
+.sumCheck {
+  margin-top: 0.85rem;
+  font-size: 0.85rem;
+  color: #1f8a3b;
+}
+
+.sumCheckBad {
+  composes: sumCheck;
+  color: #b03030;
+}
+
+.orderMeta {
+  font-size: 0.8rem;
+  color: #8a8a9a;
+  margin-bottom: 0.5rem;
+}
