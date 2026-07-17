@@ -1,0 +1,245 @@
+/* Shared building blocks for admin screens: page headers, list tables,
+   forms, buttons, and error boxes. */
+
+.pageHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.pageTitle {
+  font-size: 1.5rem;
+  color: #1a1a2e;
+}
+
+.pageSubtitle {
+  color: #777;
+  margin-top: 0.35rem;
+}
+
+.card {
+  background: #ffffff;
+  border: 1px solid #e2e2e2;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.cardTitle {
+  font-size: 1.05rem;
+  color: #1a1a2e;
+  margin-bottom: 1rem;
+}
+
+.listTable {
+  width: 100%;
+  border-collapse: collapse;
+  background: #ffffff;
+  border: 1px solid #e2e2e2;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.listTable th {
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #777;
+  background: #fafafa;
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid #e2e2e2;
+}
+
+.listTable td {
+  padding: 0.8rem 1rem;
+  border-bottom: 1px solid #efefef;
+  font-size: 0.9rem;
+  color: #1a1a2e;
+  vertical-align: middle;
+}
+
+.listTable tr:last-child td {
+  border-bottom: none;
+}
+
+.badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: #eef1ff;
+  color: #3742a8;
+}
+
+.badgeMuted {
+  composes: badge;
+  background: #f0f0f0;
+  color: #666;
+}
+
+.badgeWarning {
+  composes: badge;
+  background: #fdf3e0;
+  color: #9a6b15;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+}
+
+.formRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 1rem;
+}
+
+@media (max-width: 600px) {
+  .formRow {
+    grid-template-columns: 1fr;
+  }
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 1rem;
+}
+
+.label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #444;
+  margin-bottom: 0.3rem;
+}
+
+.input,
+.select {
+  border: 1px solid #d5d5d5;
+  border-radius: 6px;
+  padding: 0.55rem 0.75rem;
+  font-size: 0.95rem;
+  background: #ffffff;
+}
+
+.input:focus,
+.select:focus {
+  outline: 2px solid #3742a8;
+  outline-offset: -1px;
+  border-color: transparent;
+}
+
+.input:disabled {
+  background: #f5f5f5;
+  color: #888;
+}
+
+.hint {
+  font-size: 0.75rem;
+  color: #999;
+  margin-top: 0.3rem;
+}
+
+.actions {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.primaryButton {
+  background: #3742a8;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.55rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primaryButton:hover:not(:disabled) {
+  background: #2e388f;
+}
+
+.secondaryButton {
+  background: #ffffff;
+  color: #444;
+  border: 1px solid #d5d5d5;
+  border-radius: 6px;
+  padding: 0.55rem 1rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.secondaryButton:hover:not(:disabled) {
+  background: #f5f5f5;
+}
+
+.dangerButton {
+  background: #ffffff;
+  color: #b03030;
+  border: 1px solid #d9a0a0;
+  border-radius: 6px;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.dangerButton:hover:not(:disabled) {
+  background: #fdeaea;
+}
+
+.rowButton {
+  background: #ffffff;
+  color: #3742a8;
+  border: 1px solid #c3c9f0;
+  border-radius: 6px;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.rowButton:hover:not(:disabled) {
+  background: #eef1ff;
+}
+
+.primaryButton:disabled,
+.secondaryButton:disabled,
+.dangerButton:disabled,
+.rowButton:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.errorBox {
+  background: #fdeaea;
+  color: #b03030;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.errorBox ul {
+  margin: 0.4rem 0 0 1.1rem;
+}
+
+.stateMessage {
+  color: #777;
+}
+
+.empty {
+  background: #ffffff;
+  border: 1px dashed #d5d5d5;
+  border-radius: 12px;
+  padding: 2rem;
+  text-align: center;
+  color: #777;
+}

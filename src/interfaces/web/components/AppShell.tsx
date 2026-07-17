@@ -7,9 +7,11 @@ import { useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import styles from './AppShell.module.css';
 
-// Extend as screens are added (reservations, tables, availability, …)
+// Extend as screens are added (reservations, availability, …)
 const NAV_ITEMS: { href: string; label: string }[] = [
   { href: '/', label: 'Dashboard' },
+  { href: '/restaurants', label: 'Restaurants' },
+  { href: '/tables', label: 'Tables' },
 ];
 
 export function AppShell({ children }: { children: ReactNode }): JSX.Element {
