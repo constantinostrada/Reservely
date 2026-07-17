@@ -71,6 +71,8 @@ import { ListOrdersUseCase } from '@application/use-cases/ListOrdersUseCase';
 import { SplitBillUseCase } from '@application/use-cases/SplitBillUseCase';
 import { ChargeBillUseCase } from '@application/use-cases/ChargeBillUseCase';
 import { HandlePaymentWebhookUseCase } from '@application/use-cases/HandlePaymentWebhookUseCase';
+import { ListOrderPaymentsUseCase } from '@application/use-cases/ListOrderPaymentsUseCase';
+import { ListPaymentsUseCase } from '@application/use-cases/ListPaymentsUseCase';
 
 const DEFAULT_TOKEN_TTL_SECONDS = 60 * 60 * 24; // 24h
 
@@ -392,6 +394,17 @@ class Container {
       this.getPaymentRepository(),
       this.getEventPublisher()
     );
+  }
+
+  public getListOrderPaymentsUseCase(): ListOrderPaymentsUseCase {
+    return new ListOrderPaymentsUseCase(
+      this.getPaymentRepository(),
+      this.getOrderRepository()
+    );
+  }
+
+  public getListPaymentsUseCase(): ListPaymentsUseCase {
+    return new ListPaymentsUseCase(this.getPaymentRepository());
   }
 }
 

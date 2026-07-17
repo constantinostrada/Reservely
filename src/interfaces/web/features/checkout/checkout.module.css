@@ -1,0 +1,149 @@
+/* Checkout + confirmation. Reuses ui.module.css for cards/buttons/inputs and
+   orders.module.css for the totals block; this file adds only the pieces those
+   don't cover (payment-method chips and the confirmation panel). */
+
+/* Payment method selector */
+.methodGroup {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.methodChip {
+  flex: 1;
+  min-width: 96px;
+  border: 1px solid #d5d5d5;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.9rem;
+  color: #4a4a5a;
+  cursor: pointer;
+  text-transform: capitalize;
+}
+
+.methodChip:hover:not(:disabled) {
+  border-color: #3742a8;
+}
+
+.methodChipActive {
+  composes: methodChip;
+  border-color: #3742a8;
+  background: #eef1ff;
+  color: #3742a8;
+  font-weight: 600;
+}
+
+.methodChip:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.payAmount {
+  font-variant-numeric: tabular-nums;
+}
+
+.mutedNote {
+  font-size: 0.75rem;
+  color: #999;
+  margin-top: 0.85rem;
+}
+
+.mockRow {
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px dashed #e2e2e2;
+}
+
+.linkButton {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #8a6a12;
+  font-size: 0.8rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.linkButton:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* Processing (transient pending) */
+.processing {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: #8a6a12;
+  background: #fdf6e8;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+/* Confirmation panel */
+.confirmCard {
+  text-align: center;
+  padding: 2.5rem 1.5rem;
+}
+
+.confirmIcon {
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  background: #e6f6ec;
+  color: #1f8a3b;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  margin-bottom: 1rem;
+}
+
+.confirmTitle {
+  font-size: 1.35rem;
+  color: #1a1a2e;
+  margin-bottom: 0.35rem;
+}
+
+.confirmSubtitle {
+  color: #777;
+  margin-bottom: 1.5rem;
+}
+
+.confirmAmount {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1a1a2e;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 1.5rem;
+}
+
+.detailList {
+  text-align: left;
+  max-width: 360px;
+  margin: 0 auto 1.75rem;
+  border-top: 1px solid #efeff3;
+}
+
+.detailRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid #efeff3;
+  font-size: 0.9rem;
+}
+
+.detailLabel {
+  color: #8a8a9a;
+}
+
+.detailValue {
+  color: #1a1a2e;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}

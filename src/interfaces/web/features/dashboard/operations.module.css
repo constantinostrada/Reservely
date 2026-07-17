@@ -1,0 +1,154 @@
+/* Operations dashboard. Reuses ui.module.css for cards/buttons/badges; this
+   file adds the filter bar, summary tiles, and per-order status rows. */
+
+.filterBar {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+}
+
+.dateNav {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+/* Summary tiles */
+.summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.tile {
+  background: #ffffff;
+  border: 1px solid #e2e2e2;
+  border-radius: 12px;
+  padding: 1rem 1.1rem;
+}
+
+.tileLabel {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #8a8a9a;
+}
+
+.tileValue {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1a1a2e;
+  font-variant-numeric: tabular-nums;
+  margin-top: 0.35rem;
+}
+
+/* Reservation card */
+.resCard {
+  background: #ffffff;
+  border: 1px solid #e2e2e2;
+  border-radius: 12px;
+  padding: 1.1rem 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.resHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.resTime {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #1a1a2e;
+  font-variant-numeric: tabular-nums;
+}
+
+.resGuest {
+  color: #1a1a2e;
+  font-weight: 600;
+}
+
+.resMeta {
+  color: #8a8a9a;
+  font-size: 0.85rem;
+  margin-top: 0.1rem;
+}
+
+.orderList {
+  margin-top: 0.9rem;
+  border-top: 1px solid #efeff3;
+}
+
+.orderRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid #f4f4f7;
+}
+
+.orderRow:last-child {
+  border-bottom: none;
+}
+
+.orderInfo {
+  color: #4a4a5a;
+  font-size: 0.9rem;
+}
+
+.orderId {
+  color: #8a8a9a;
+  font-size: 0.78rem;
+}
+
+.orderRight {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.orderTotal {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: #1a1a2e;
+}
+
+.noOrders {
+  margin-top: 0.75rem;
+  color: #9a9aa8;
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+/* Payment status badges (extend ui.badge shape) */
+.payPaid {
+  composes: badge from '../../components/ui.module.css';
+  background: #e6f6ec;
+  color: #1f8a3b;
+}
+
+.payProcessing {
+  composes: badge from '../../components/ui.module.css';
+  background: #fdf3e0;
+  color: #9a6b15;
+}
+
+.payDeclined {
+  composes: badge from '../../components/ui.module.css';
+  background: #fdeaea;
+  color: #b03030;
+}
+
+.payUnpaid {
+  composes: badge from '../../components/ui.module.css';
+  background: #f0f0f0;
+  color: #777;
+}

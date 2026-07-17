@@ -18,6 +18,8 @@ export interface IPaymentRepository {
   /** Looks a payment up by the provider's charge reference. */
   findByExternalRef(externalRef: string): Promise<Payment | null>;
   findByOrderId(restaurantId: string, orderId: string): Promise<Payment[]>;
+  /** Every payment for a tenant — the operational dashboard's payment feed. */
+  findAll(restaurantId: string): Promise<Payment[]>;
   /** Whether a provider event id has already been applied. */
   hasProcessedEvent(eventId: string): Promise<boolean>;
   /**

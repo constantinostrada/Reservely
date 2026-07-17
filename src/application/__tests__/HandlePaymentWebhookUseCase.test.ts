@@ -54,6 +54,12 @@ class InMemoryPaymentRepository implements IPaymentRepository {
     );
   }
 
+  async findAll(restaurantId: string): Promise<Payment[]> {
+    return [...this.payments.values()].filter(
+      (p) => p.restaurantId === restaurantId
+    );
+  }
+
   async hasProcessedEvent(eventId: string): Promise<boolean> {
     return this.processedEvents.has(eventId);
   }

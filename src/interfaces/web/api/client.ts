@@ -26,6 +26,12 @@ import type {
   PlaceOrderDTO,
 } from '@application/dtos/OrderDTO';
 import type {
+  ChargeBillDTO,
+  PaymentDTO,
+  PaymentListDTO,
+  PaymentWebhookResultDTO,
+} from '@application/dtos/PaymentDTO';
+import type {
   CreateRestaurantDTO,
   RestaurantDTO,
   RestaurantListDTO,
@@ -120,6 +126,38 @@ export const api = {
     split: (id: string, ways: number) =>
       request<BillSplitDTO>(`/api/orders/${id}/split`, {
         query: { ways },
+      }),
+  },
+
+  payments: {
+    // All payments for the tenant — the operational dashboard joins these to
+    // orders to show each bill's payment status.
+    list: () => request<PaymentListDTO>('/api/payments'),
+    // Payments recorded against an order — the UI reads these to reflect the
+    // current, webhook-confirmed state of the bill (pending → paid / declined).
+    listForOrder: (orderId: string) =>
+      request<PaymentListDTO>(`/api/orders/${orderId}/payments`),
+    // Initiate a charge through the mock provider; returns a pending payment.
+    charge: (orderId: string, input: ChargeBillDTO = {}) =>
+      request<PaymentDTO>(`/api/orders/${orderId}/charge`, {
+        method: 'POST',
+        body: input,
+      }),
+    // Simulate the mock provider's asynchronous webhook callback that settles
+    // the charge. In production this call comes from the provider, not the UI;
+    // for the mock provider the client drives it (see the webhook route note).
+    settle: (input: {
+      eventId: string;
+      type: 'payment.succeeded' | 'payment.failed';
+      externalRef: string;
+    }) =>
+      request<PaymentWebhookResultDTO>('/api/webhooks/payments', {
+        method: 'POST',
+        body: {
+          id: input.eventId,
+          type: input.type,
+          data: { externalRef: input.externalRef },
+        },
       }),
   },
 

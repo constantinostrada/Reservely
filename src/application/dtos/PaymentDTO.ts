@@ -17,6 +17,11 @@ export interface PaymentDTO {
   updatedAt: string;
 }
 
+export interface PaymentListDTO {
+  payments: PaymentDTO[];
+  total: number;
+}
+
 /** A webhook delivery from the payment provider. */
 export interface PaymentWebhookEventDTO {
   /** Provider-assigned event id — the idempotency key. */

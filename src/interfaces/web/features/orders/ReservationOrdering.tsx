@@ -304,9 +304,14 @@ function OrderCard({
 
   return (
     <section className={ui.card}>
-      <p className={styles.orderMeta}>
-        Order #{order.id.slice(-6)} · {order.status}
-      </p>
+      <div className={ui.pageHeader} style={{ marginBottom: '0.5rem' }}>
+        <p className={styles.orderMeta} style={{ marginBottom: 0 }}>
+          Order #{order.id.slice(-6)} · {order.status}
+        </p>
+        <Link href={`/orders/${order.id}/checkout`} className={ui.rowButton}>
+          Pay bill →
+        </Link>
+      </div>
 
       <table className={ui.listTable} style={{ marginBottom: '0.5rem' }}>
         <thead>

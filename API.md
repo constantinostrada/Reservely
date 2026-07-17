@@ -651,6 +651,45 @@ Returns `404` for an unknown order, `422` when the order is cancelled, and
 `409 Conflict` when the order already has a pending or succeeded payment (only
 `failed`/`refunded` payments may be re-charged).
 
+### List Payments (tenant-wide)
+
+```http
+GET /payments
+```
+
+Every payment for the tenant, newest first — the operations dashboard reads
+this once and joins it to orders by `orderId`.
+
+**Response** (200 OK)
+
+```json
+{
+  "payments": [{ "id": "uuid", "orderId": "uuid", "status": "succeeded", "...": "..." }],
+  "total": 1
+}
+```
+
+### List Payments for an Order
+
+```http
+GET /orders/:id/payments
+```
+
+Every payment recorded against the order, oldest first — lets a client reflect
+the current, webhook-settled state of a bill (`pending` → `succeeded`/`failed`).
+
+**Response** (200 OK)
+
+```json
+{
+  "payments": [{ "id": "uuid", "status": "succeeded", "...": "..." }],
+  "total": 1
+}
+```
+
+Returns `404` for an unknown order and `403` when the order belongs to another
+tenant.
+
 ### Payment Webhook (provider → server)
 
 ```http

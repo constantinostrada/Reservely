@@ -11,6 +11,16 @@ export class PaymentController {
     return await useCase.execute(orderId, dto, auth);
   }
 
+  async listForOrder(orderId: string, auth: TenantContext) {
+    const useCase = container.getListOrderPaymentsUseCase();
+    return await useCase.execute(orderId, auth);
+  }
+
+  async list(auth: TenantContext) {
+    const useCase = container.getListPaymentsUseCase();
+    return await useCase.execute(auth);
+  }
+
   async handleWebhook(event: PaymentWebhookEventDTO) {
     const useCase = container.getHandlePaymentWebhookUseCase();
     return await useCase.execute(event);

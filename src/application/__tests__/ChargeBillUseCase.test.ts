@@ -63,6 +63,7 @@ describe('ChargeBillUseCase', () => {
       findById: jest.fn(),
       findByExternalRef: jest.fn(),
       findByOrderId: jest.fn().mockResolvedValue([]),
+      findAll: jest.fn().mockResolvedValue([]),
       hasProcessedEvent: jest.fn(),
       settleWithEventDedupe: jest.fn(),
     };

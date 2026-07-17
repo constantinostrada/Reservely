@@ -47,6 +47,14 @@ export class PrismaPaymentRepository implements IPaymentRepository {
     return payments.map((p) => this.toDomain(p));
   }
 
+  async findAll(restaurantId: string): Promise<Payment[]> {
+    const payments = await this.prisma.payment.findMany({
+      where: withTenant(restaurantId, {}),
+      orderBy: { createdAt: 'desc' },
+    });
+    return payments.map((p) => this.toDomain(p));
+  }
+
   async hasProcessedEvent(eventId: string): Promise<boolean> {
     const event = await this.prisma.paymentEvent.findUnique({
       where: { eventId },
