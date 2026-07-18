@@ -798,13 +798,24 @@ Returns `404` when no payment matches `externalRef`.
 GET /health
 ```
 
-**Response**
+Public (no auth). Pings the database with a `SELECT 1`; intended for uptime
+monitoring.
+
+**Response** `200 OK`
 
 ```json
 {
-  "status": "healthy",
-  "timestamp": "2024-01-10T10:00:00.000Z",
-  "database": "connected"
+  "status": "ok",
+  "db": "up"
+}
+```
+
+**Response** `503 Service Unavailable` — the database did not respond
+
+```json
+{
+  "status": "error",
+  "db": "down"
 }
 ```
 

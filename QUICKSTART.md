@@ -90,11 +90,13 @@ curl http://localhost:3000/api/health
 Should return:
 ```json
 {
-  "status": "healthy",
-  "timestamp": "2024-01-10T10:00:00.000Z",
-  "database": "connected"
+  "status": "ok",
+  "db": "up"
 }
 ```
+
+Returns `503` with `{ "status": "error", "db": "down" }` when the database is
+unreachable.
 
 ## Next Steps
 
