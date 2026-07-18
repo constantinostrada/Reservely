@@ -11,6 +11,7 @@ export class RestaurantMapper {
       currency: restaurant.currency,
       address: restaurant.address,
       phone: restaurant.phone,
+      noShowGraceMinutes: restaurant.noShowGraceMinutes,
       createdAt: restaurant.createdAt.toISOString(),
       updatedAt: restaurant.updatedAt.toISOString(),
     };
@@ -24,6 +25,7 @@ export class RestaurantMapper {
       currency: dto.currency,
       address: dto.address,
       phone: dto.phone,
+      noShowGraceMinutes: dto.noShowGraceMinutes,
     });
   }
 

@@ -170,6 +170,28 @@ export class Reservation {
     this.props.updatedAt = new Date();
   }
 
+  /**
+   * Whether the guest should be considered a no-show at `now`: the
+   * reservation is still waiting to be seated (pending/confirmed — a seated
+   * party already showed up, and cancelled/completed reservations no longer
+   * hold their table) and the grace period has fully elapsed. Grace runs from
+   * the slot's start, or from the booking's creation when that is later — a
+   * reservation created mid-slot (waitlist promotion, walk-in) cannot be
+   * "late" for a start time that predates it. The transition itself runs
+   * atomically in the repository (markNoShowIfUnseated) so a concurrent
+   * seat/cancel can never be overwritten.
+   */
+  public isNoShowAfterGrace(graceMinutes: number, now: Date): boolean {
+    const graceStart = Math.max(
+      this._slot.start.getTime(),
+      this.props.createdAt!.getTime()
+    );
+    return (
+      (this.props.status.isPending() || this.props.status.isConfirmed()) &&
+      now.getTime() >= graceStart + graceMinutes * 60_000
+    );
+  }
+
   public complete(): void {
     if (this.props.status.value !== 'confirmed') {
       throw new Error('Only confirmed reservations can be completed');

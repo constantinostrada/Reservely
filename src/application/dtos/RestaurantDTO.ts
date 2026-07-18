@@ -5,6 +5,7 @@ export interface CreateRestaurantDTO {
   currency?: string;
   address?: string;
   phone?: string;
+  noShowGraceMinutes?: number;
 }
 
 export interface UpdateRestaurantDTO {
@@ -13,6 +14,7 @@ export interface UpdateRestaurantDTO {
   currency?: string;
   address?: string;
   phone?: string;
+  noShowGraceMinutes?: number;
 }
 
 export interface RestaurantDTO {
@@ -23,6 +25,7 @@ export interface RestaurantDTO {
   currency: string;
   address?: string;
   phone?: string;
+  noShowGraceMinutes: number;
   createdAt: string;
   updatedAt: string;
 }

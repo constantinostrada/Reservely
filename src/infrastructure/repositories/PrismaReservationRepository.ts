@@ -4,7 +4,10 @@ import {
   Reservation as PrismaReservation,
   ReservationStatus as PrismaReservationStatus,
 } from '@prisma/client';
-import { IReservationRepository } from '@domain/repositories/IReservationRepository';
+import {
+  IReservationRepository,
+  SlotHoldSwap,
+} from '@domain/repositories/IReservationRepository';
 import {
   DEFAULT_RESERVATION_DURATION_MINUTES,
   Reservation,
@@ -160,6 +163,139 @@ export class PrismaReservationRepository implements IReservationRepository {
     return created.map((row) => this.toDomain(row));
   }
 
+  /**
+   * Atomic reschedule/resize swap. Inside one transaction:
+   *  1. lock the primary reservation row and refuse if it is no longer
+   *     pending/confirmed (a concurrent cancel/seat/no-show wins);
+   *  2. lock every target table row (in a stable order, like the combined
+   *     hold, to avoid deadlocks);
+   *  3. re-check every new row's slot for overlapping slot-blocking
+   *     reservations, ignoring the booking's own rows (so an unchanged or
+   *     partially-overlapping move never conflicts with itself);
+   *  4. only then update/insert the new hold rows and cancel the released
+   *     ones.
+   * A conflict at any step throws before anything is written — the whole
+   * swap rolls back and the original hold stays exactly as it was.
+   */
+  async swapSlotHold(swap: SlotHoldSwap): Promise<Reservation> {
+    if (swap.hold.length === 0) {
+      throw new ValidationException('A slot swap requires at least one row');
+    }
+    const primary = swap.hold[0];
+    const restaurantId = primary.restaurantId;
+    for (const reservation of swap.hold) {
+      if (!reservation.tableId) {
+        throw new ValidationException(
+          'A reservation must be assigned to a table to hold a slot'
+        );
+      }
+      if (reservation.restaurantId !== restaurantId) {
+        throw new ValidationException(
+          'All rows of a slot swap must belong to one restaurant'
+        );
+      }
+    }
+
+    // The booking's own rows never conflict with its new hold.
+    const ownIds = [
+      ...new Set([...swap.hold.map((r) => r.id), ...swap.releaseIds]),
+    ];
+    const tableIds = [...new Set(swap.hold.map((r) => r.tableId as string))]
+      .sort((a, b) => a.localeCompare(b));
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const lockedPrimary = await tx.$queryRaw<Array<{ status: string }>>`
+        SELECT status::text AS status FROM reservations
+        WHERE id = ${primary.id} AND restaurant_id = ${restaurantId}
+        FOR UPDATE
+      `;
+      if (lockedPrimary.length === 0) {
+        throw new EntityNotFoundException('Reservation', primary.id);
+      }
+      if (!['PENDING', 'CONFIRMED'].includes(lockedPrimary[0].status)) {
+        throw new ConflictException(
+          'The reservation changed while being modified and can no longer be moved'
+        );
+      }
+      // Keep whatever status a concurrent transition (e.g. confirm) just
+      // committed, rather than writing back the state we loaded earlier.
+      const currentStatus = lockedPrimary[0].status as PrismaReservationStatus;
+
+      for (const tableId of tableIds) {
+        const lockedTable = await tx.$queryRaw<Array<{ id: string }>>`
+          SELECT id FROM tables
+          WHERE id = ${tableId} AND restaurant_id = ${restaurantId}
+          FOR UPDATE
+        `;
+        if (lockedTable.length === 0) {
+          throw new EntityNotFoundException('Table', tableId);
+        }
+      }
+
+      for (const reservation of swap.hold) {
+        const conflicts = await tx.$queryRaw<Array<{ id: string }>>`
+          SELECT id FROM reservations
+          WHERE table_id = ${reservation.tableId}
+            AND id NOT IN (${Prisma.join(ownIds)})
+            AND status::text IN ('PENDING', 'CONFIRMED', 'SEATED')
+            AND starts_at < ${reservation.endsAt}
+            AND COALESCE(
+                  ends_at,
+                  starts_at
+                    + ${DEFAULT_RESERVATION_DURATION_MINUTES} * interval '1 minute'
+                ) > ${reservation.startsAt}
+          LIMIT 1
+        `;
+        if (conflicts.length > 0) {
+          throw new ConflictException(
+            'The requested time slot is already reserved'
+          );
+        }
+      }
+
+      if (swap.releaseIds.length > 0) {
+        await tx.reservation.updateMany({
+          where: withTenant(restaurantId, { id: { in: swap.releaseIds } }),
+          data: { status: PrismaReservationStatus.CANCELLED, updatedAt: new Date() },
+        });
+      }
+
+      let updatedPrimary: PrismaReservation | null = null;
+      for (const reservation of swap.hold) {
+        const data = {
+          tableId: reservation.tableId as string,
+          guestName: reservation.guestName,
+          guestEmail: reservation.guestEmail.value,
+          guestPhone: reservation.guestPhone ?? null,
+          startsAt: reservation.startsAt,
+          endsAt: reservation.endsAt,
+          partySize: reservation.partySize,
+          status: currentStatus,
+          notes: reservation.notes ?? null,
+          combinationId: reservation.combinationId ?? null,
+          updatedAt: new Date(),
+        };
+        const row = await tx.reservation.upsert({
+          where: { id: reservation.id },
+          update: data,
+          create: {
+            ...data,
+            id: reservation.id,
+            restaurantId,
+            createdAt: reservation.createdAt,
+          },
+        });
+        if (reservation.id === primary.id) {
+          updatedPrimary = row;
+        }
+      }
+
+      return updatedPrimary as PrismaReservation;
+    });
+
+    return this.toDomain(updated);
+  }
+
   async findById(id: string): Promise<Reservation | null> {
     const reservation = await this.prisma.reservation.findUnique({
       where: { id },
@@ -225,6 +361,52 @@ export class PrismaReservationRepository implements IReservationRepository {
     });
 
     return reservations.map((r) => this.toDomain(r));
+  }
+
+  async findNoShowCandidates(
+    restaurantId: string,
+    startedBefore: Date
+  ): Promise<Reservation[]> {
+    const reservations = await this.prisma.reservation.findMany({
+      where: withTenant(restaurantId, {
+        status: {
+          in: [
+            PrismaReservationStatus.PENDING,
+            PrismaReservationStatus.CONFIRMED,
+          ],
+        },
+        startsAt: { lte: startedBefore },
+        // A booking created mid-slot (waitlist promotion, walk-in) gets its
+        // grace from creation, not from the already-past start time.
+        createdAt: { lte: startedBefore },
+      }),
+      orderBy: { startsAt: 'asc' },
+    });
+
+    return reservations.map((r) => this.toDomain(r));
+  }
+
+  async markNoShowIfUnseated(restaurantId: string, id: string): Promise<boolean> {
+    // Conditional updateMany: the status filter makes the transition atomic,
+    // so a row that was seated/cancelled/completed — or already swept by a
+    // concurrent run — matches nothing and reports false to the caller.
+    const result = await this.prisma.reservation.updateMany({
+      where: withTenant(restaurantId, {
+        id,
+        status: {
+          in: [
+            PrismaReservationStatus.PENDING,
+            PrismaReservationStatus.CONFIRMED,
+          ],
+        },
+      }),
+      data: {
+        status: PrismaReservationStatus.NO_SHOW,
+        updatedAt: new Date(),
+      },
+    });
+
+    return result.count === 1;
   }
 
   async update(reservation: Reservation): Promise<Reservation> {

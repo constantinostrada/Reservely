@@ -15,6 +15,7 @@ export class PrismaRestaurantRepository implements IRestaurantRepository {
         currency: restaurant.currency,
         address: restaurant.address || null,
         phone: restaurant.phone || null,
+        noShowGraceMinutes: restaurant.noShowGraceMinutes,
         createdAt: restaurant.createdAt,
         updatedAt: restaurant.updatedAt,
       },
@@ -55,6 +56,7 @@ export class PrismaRestaurantRepository implements IRestaurantRepository {
         currency: restaurant.currency,
         address: restaurant.address || null,
         phone: restaurant.phone || null,
+        noShowGraceMinutes: restaurant.noShowGraceMinutes,
         updatedAt: new Date(),
       },
     });
@@ -79,6 +81,7 @@ export class PrismaRestaurantRepository implements IRestaurantRepository {
       currency: data.currency,
       address: data.address || undefined,
       phone: data.phone || undefined,
+      noShowGraceMinutes: data.noShowGraceMinutes,
       createdAt: data.createdAt,
       updatedAt: data.updatedAt,
     });

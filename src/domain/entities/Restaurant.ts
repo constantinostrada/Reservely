@@ -8,6 +8,11 @@ export interface RestaurantProps {
   currency?: string;
   address?: string;
   phone?: string;
+  /**
+   * Minutes past a reservation's start time before an unseated guest is
+   * considered a no-show and the table is released.
+   */
+  noShowGraceMinutes?: number;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -18,14 +23,21 @@ export interface RestaurantUpdate {
   currency?: string;
   address?: string;
   phone?: string;
+  noShowGraceMinutes?: number;
 }
 
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const CURRENCY_PATTERN = /^[A-Z]{3}$/;
 
+export const DEFAULT_NO_SHOW_GRACE_MINUTES = 15;
+const MAX_NO_SHOW_GRACE_MINUTES = 24 * 60;
+
 export class Restaurant {
   private readonly props: Required<
-    Pick<RestaurantProps, 'id' | 'name' | 'slug' | 'timezone' | 'currency'>
+    Pick<
+      RestaurantProps,
+      'id' | 'name' | 'slug' | 'timezone' | 'currency' | 'noShowGraceMinutes'
+    >
   > &
     RestaurantProps;
 
@@ -35,6 +47,8 @@ export class Restaurant {
       id: props.id || this.generateId(),
       timezone: props.timezone || 'UTC',
       currency: props.currency || 'USD',
+      noShowGraceMinutes:
+        props.noShowGraceMinutes ?? DEFAULT_NO_SHOW_GRACE_MINUTES,
       createdAt: props.createdAt || new Date(),
       updatedAt: props.updatedAt || new Date(),
     };
@@ -83,6 +97,18 @@ export class Restaurant {
     if (props.phone && props.phone.length > 30) {
       throw new ValidationException('Phone must not exceed 30 characters');
     }
+
+    if (props.noShowGraceMinutes !== undefined) {
+      if (
+        !Number.isInteger(props.noShowGraceMinutes) ||
+        props.noShowGraceMinutes < 0 ||
+        props.noShowGraceMinutes > MAX_NO_SHOW_GRACE_MINUTES
+      ) {
+        throw new ValidationException(
+          `No-show grace period must be an integer between 0 and ${MAX_NO_SHOW_GRACE_MINUTES} minutes`
+        );
+      }
+    }
   }
 
   private generateId(): string {
@@ -118,6 +144,11 @@ export class Restaurant {
     return this.props.phone;
   }
 
+  /** Minutes past a reservation's start before an unseated guest is a no-show. */
+  get noShowGraceMinutes(): number {
+    return this.props.noShowGraceMinutes;
+  }
+
   get createdAt(): Date {
     return this.props.createdAt!;
   }
@@ -140,6 +171,8 @@ export class Restaurant {
       currency: changes.currency ?? this.props.currency,
       address: changes.address ?? this.props.address,
       phone: changes.phone ?? this.props.phone,
+      noShowGraceMinutes:
+        changes.noShowGraceMinutes ?? this.props.noShowGraceMinutes,
     };
     this.validateProps(next);
 
@@ -148,6 +181,7 @@ export class Restaurant {
     this.props.currency = next.currency!;
     this.props.address = next.address;
     this.props.phone = next.phone;
+    this.props.noShowGraceMinutes = next.noShowGraceMinutes!;
     this.props.updatedAt = new Date();
   }
 }

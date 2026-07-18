@@ -78,9 +78,13 @@ Content-Type: application/json
   "timezone": "America/New_York",
   "currency": "USD",
   "address": "123 Main St",
-  "phone": "+1234567890"
+  "phone": "+1234567890",
+  "noShowGraceMinutes": 15
 }
 ```
+
+`noShowGraceMinutes` is optional (default `15`, integer `0`–`1440`): minutes
+past a reservation's start before an unseated guest counts as a no-show.
 
 **Response** (201 Created)
 
@@ -93,6 +97,7 @@ Content-Type: application/json
   "currency": "USD",
   "address": "123 Main St",
   "phone": "+1234567890",
+  "noShowGraceMinutes": 15,
   "createdAt": "2024-01-01T10:00:00.000Z",
   "updatedAt": "2024-01-01T10:00:00.000Z"
 }
@@ -132,8 +137,8 @@ PATCH /restaurants/:id
 Content-Type: application/json
 ```
 
-Partial update of `name`, `timezone`, `currency`, `address`, `phone`.
-The `slug` is immutable.
+Partial update of `name`, `timezone`, `currency`, `address`, `phone`,
+`noShowGraceMinutes`. The `slug` is immutable.
 
 ### Delete Restaurant
 
@@ -216,6 +221,42 @@ GET /reservations/:id
 
 **Response** (200 OK): the reservation.
 
+### Modify Reservation (reschedule / resize)
+
+```http
+PATCH /reservations/:id
+Content-Type: application/json
+```
+
+**Request Body** (all fields optional, at least one required)
+
+```json
+{
+  "date": "2026-08-02",
+  "time": "20:00",
+  "partySize": 8,
+  "guestName": "John Doe",
+  "guestPhone": "+1234567890",
+  "notes": "Anniversary"
+}
+```
+
+`date`/`time` are restaurant-local; whichever half is omitted is carried over
+from the current start time. Only `pending`/`confirmed` reservations can be
+modified, and a new slot must be in the future and inside service hours.
+
+The move is an **atomic swap**: the new table/slot hold is taken and the old
+one released in a single transaction, so if the new hold fails nothing
+changes — the guest never loses their booking. The reservation keeps its id.
+If the party outgrows every single table, the booking falls back to a
+combination of adjacent tables (one row per table, shared `combinationId`);
+shrinking back releases the extra tables. Tables freed by a successful move
+are offered to the waitlist.
+
+**Response** (200 OK): the updated reservation. Returns `409 Conflict` when
+the requested slot is already taken on every suitable table, `400` when no
+table (or combination) can seat the party or the new time is invalid.
+
 ### Confirm Reservation
 
 ```http
@@ -233,6 +274,28 @@ POST /reservations/:id/cancel
 
 **Response** (200 OK): the reservation with status `cancelled`. Cancelling
 frees the table's slot for a new booking.
+
+### No-show Sweep
+
+```http
+POST /reservations/no-show-sweep
+```
+
+Admin/maintenance: marks every reservation still `pending`/`confirmed` whose
+start time passed the restaurant's `noShowGraceMinutes` as `no_show`, freeing
+its table(s) and promoting the next eligible waitlist entry into each freed
+table (the guest is notified). Seated, cancelled and completed reservations
+are never touched, and a reservation is released exactly once — the endpoint
+is idempotent and safe to call from a scheduled job.
+
+**Response** (200 OK)
+
+```json
+{
+  "markedNoShow": 2,
+  "promoted": 1
+}
+```
 
 ## Availability
 

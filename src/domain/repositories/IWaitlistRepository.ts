@@ -9,6 +9,17 @@ export interface FreedSlot {
   endsAt: Date;
 }
 
+export interface PromoteOptions {
+  /**
+   * By default a slot whose start time has passed is not offered to the
+   * waitlist (a spot freed by a pre-start cancellation is useless once the
+   * slot begins). A no-show release happens *after* the start by definition,
+   * yet the waiting guests may still want the rest of the slot — set this to
+   * promote as long as the slot has not ended.
+   */
+  includeStartedSlots?: boolean;
+}
+
 /** Outcome of a successful promotion: the new reservation and the entry. */
 export interface WaitlistPromotion {
   reservation: Reservation;
@@ -36,8 +47,14 @@ export interface IWaitlistRepository {
    * and mark the entry promoted. Returns the promotion, or null when there is
    * no eligible entry (or the slot was re-taken). Guarantees that two
    * simultaneous cancellations freeing space can never promote one entry twice.
+   *
+   * Slots that already started are skipped unless `options.includeStartedSlots`
+   * is set (used by the no-show sweep, which frees tables mid-slot).
    */
-  promoteNextForFreedSlot(slot: FreedSlot): Promise<WaitlistPromotion | null>;
+  promoteNextForFreedSlot(
+    slot: FreedSlot,
+    options?: PromoteOptions
+  ): Promise<WaitlistPromotion | null>;
 
   /**
    * Expire every still-waiting entry whose slot start time is at or before

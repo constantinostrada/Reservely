@@ -92,6 +92,27 @@ export function zonedTimeToUtc(
 }
 
 /**
+ * The instant's wall-clock reading in the given IANA time zone, split into
+ * the local calendar date ("YYYY-MM-DD") and time ("HH:mm"). Inverse of
+ * zonedTimeToUtc at minute precision — used when a caller changes only the
+ * date or only the time of an existing UTC instant.
+ */
+export function utcToZonedDateTime(
+  instant: Date,
+  timeZone: string
+): { date: string; time: string } {
+  const parts = getFormatter(timeZone).formatToParts(instant);
+  const get = (type: Intl.DateTimeFormatPartTypes): string =>
+    parts.find((p) => p.type === type)?.value ?? '';
+  // Some ICU versions report midnight as hour 24
+  const hour = get('hour') === '24' ? '00' : get('hour');
+  return {
+    date: `${get('year')}-${get('month')}-${get('day')}`,
+    time: `${hour}:${get('minute')}`,
+  };
+}
+
+/**
  * The UTC time slot covering a local [openTime, closeTime) window on the
  * given local calendar date. Correct across day boundaries (a zone ahead of
  * UTC can open on the previous UTC day) and on DST transition days.

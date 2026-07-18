@@ -49,6 +49,8 @@ import { GetReservationUseCase } from '@application/use-cases/GetReservationUseC
 import { ListReservationsUseCase } from '@application/use-cases/ListReservationsUseCase';
 import { ConfirmReservationUseCase } from '@application/use-cases/ConfirmReservationUseCase';
 import { CancelReservationUseCase } from '@application/use-cases/CancelReservationUseCase';
+import { MarkNoShowReservationsUseCase } from '@application/use-cases/MarkNoShowReservationsUseCase';
+import { ModifyReservationUseCase } from '@application/use-cases/ModifyReservationUseCase';
 import { JoinWaitlistUseCase } from '@application/use-cases/JoinWaitlistUseCase';
 import { ListWaitlistUseCase } from '@application/use-cases/ListWaitlistUseCase';
 import { CleanupExpiredWaitlistUseCase } from '@application/use-cases/CleanupExpiredWaitlistUseCase';
@@ -301,6 +303,28 @@ class Container {
   public getCancelReservationUseCase(): CancelReservationUseCase {
     return new CancelReservationUseCase(
       this.getReservationRepository(),
+      this.getWaitlistRepository(),
+      this.getEventPublisher()
+    );
+  }
+
+  public getModifyReservationUseCase(): ModifyReservationUseCase {
+    return new ModifyReservationUseCase(
+      this.getReservationRepository(),
+      this.getTableRepository(),
+      this.getRestaurantRepository(),
+      this.getReservationDomainService(),
+      this.getAvailabilityService(),
+      this.getTableCombinationService(),
+      this.getWaitlistRepository(),
+      this.getEventPublisher()
+    );
+  }
+
+  public getMarkNoShowReservationsUseCase(): MarkNoShowReservationsUseCase {
+    return new MarkNoShowReservationsUseCase(
+      this.getReservationRepository(),
+      this.getRestaurantRepository(),
       this.getWaitlistRepository(),
       this.getEventPublisher()
     );

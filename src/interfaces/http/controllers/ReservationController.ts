@@ -1,5 +1,8 @@
 import { container } from '@infrastructure/di/container';
-import { CreateReservationDTO } from '@application/dtos/ReservationDTO';
+import {
+  CreateReservationDTO,
+  UpdateReservationDTO,
+} from '@application/dtos/ReservationDTO';
 import { GetAvailabilityDTO } from '@application/dtos/AvailabilityDTO';
 import { TenantContext } from '@application/common/TenantContext';
 
@@ -24,6 +27,11 @@ export class ReservationController {
     return await useCase.execute(auth);
   }
 
+  async modify(id: string, dto: UpdateReservationDTO, auth: TenantContext) {
+    const useCase = container.getModifyReservationUseCase();
+    return await useCase.execute(id, dto, auth);
+  }
+
   async confirm(id: string, auth: TenantContext) {
     const useCase = container.getConfirmReservationUseCase();
     return await useCase.execute(id, auth);
@@ -32,5 +40,10 @@ export class ReservationController {
   async cancel(id: string, auth: TenantContext) {
     const useCase = container.getCancelReservationUseCase();
     return await useCase.execute(id, auth);
+  }
+
+  async sweepNoShows(auth: TenantContext) {
+    const useCase = container.getMarkNoShowReservationsUseCase();
+    return await useCase.execute(auth);
   }
 }

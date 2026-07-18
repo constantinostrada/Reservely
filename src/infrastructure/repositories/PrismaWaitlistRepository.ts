@@ -7,6 +7,7 @@ import {
 import {
   FreedSlot,
   IWaitlistRepository,
+  PromoteOptions,
   WaitlistPromotion,
 } from '@domain/repositories/IWaitlistRepository';
 import { WaitlistEntry } from '@domain/entities/WaitlistEntry';
@@ -82,9 +83,22 @@ export class PrismaWaitlistRepository implements IWaitlistRepository {
    *     promoted, all atomically.
    */
   async promoteNextForFreedSlot(
-    slot: FreedSlot
+    slot: FreedSlot,
+    options?: PromoteOptions
   ): Promise<WaitlistPromotion | null> {
     const now = new Date();
+
+    // Every matching entry shares the slot's start time, so time eligibility
+    // is a per-call constant. Normally the slot must not have started (a spot
+    // freed after the start is useless to promote into); the no-show sweep
+    // frees tables mid-slot on purpose and only needs the slot to still be
+    // running.
+    const slotStillPromotable = options?.includeStartedSlots
+      ? slot.endsAt.getTime() > now.getTime()
+      : slot.startsAt.getTime() > now.getTime();
+    if (!slotStillPromotable) {
+      return null;
+    }
 
     return this.prisma.$transaction(async (tx) => {
       const lockedTable = await tx.$queryRaw<
@@ -125,7 +139,6 @@ export class PrismaWaitlistRepository implements IWaitlistRepository {
           AND starts_at = ${slot.startsAt}
           AND status = 'WAITING'
           AND party_size <= ${capacity}
-          AND starts_at > ${now}
         ORDER BY created_at ASC, id ASC
         FOR UPDATE SKIP LOCKED
         LIMIT 1

@@ -23,6 +23,12 @@ export const createRestaurantSchema = z.object({
     .max(200, 'Address must not exceed 200 characters')
     .optional(),
   phone: z.string().max(30, 'Phone must not exceed 30 characters').optional(),
+  noShowGraceMinutes: z
+    .number()
+    .int('No-show grace period must be a whole number of minutes')
+    .min(0, 'No-show grace period cannot be negative')
+    .max(1440, 'No-show grace period cannot exceed 1440 minutes (24h)')
+    .optional(),
 });
 
 // The slug is immutable: it is the restaurant's public identifier
@@ -35,6 +41,7 @@ export const updateRestaurantSchema = z.object({
     .optional(),
   address: z.string().max(200).optional(),
   phone: z.string().max(30).optional(),
+  noShowGraceMinutes: z.number().int().min(0).max(1440).optional(),
 });
 
 export type CreateRestaurantInput = z.infer<typeof createRestaurantSchema>;

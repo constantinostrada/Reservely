@@ -89,6 +89,8 @@ model Restaurant {
   currency  String   @default("USD")
   address   String?
   phone     String?
+  /// Minutes past a reservation's start before an unseated guest is a no-show
+  noShowGraceMinutes Int @default(15) @map("no_show_grace_minutes")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
