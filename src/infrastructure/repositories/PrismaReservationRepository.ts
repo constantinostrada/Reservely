@@ -81,12 +81,103 @@ export class PrismaReservationRepository implements IReservationRepository {
     return this.toDomain(created);
   }
 
+  /**
+   * Atomic multi-table hold for a combined booking. Inside one transaction:
+   *  1. lock every table row (in a stable order, to avoid deadlocks between
+   *     two concurrent combined holds);
+   *  2. re-check every table for an overlapping slot-blocking reservation;
+   *  3. only if all are clear, insert all rows.
+   * Because the inserts happen after all checks, a conflict on any one table
+   * throws before anything is written — the whole hold rolls back and no table
+   * is left partially held.
+   */
+  async createCombinedWithSlotHold(
+    reservations: Reservation[]
+  ): Promise<Reservation[]> {
+    if (reservations.length === 0) {
+      throw new ValidationException(
+        'A combined hold requires at least one reservation'
+      );
+    }
+    const restaurantId = reservations[0].restaurantId;
+    for (const reservation of reservations) {
+      if (!reservation.tableId) {
+        throw new ValidationException(
+          'A reservation must be assigned to a table to hold a slot'
+        );
+      }
+    }
+
+    // Lock tables in a deterministic order so two combined holds that share
+    // tables can never deadlock waiting on each other.
+    const ordered = [...reservations].sort((a, b) =>
+      (a.tableId as string).localeCompare(b.tableId as string)
+    );
+
+    const created = await this.prisma.$transaction(async (tx) => {
+      for (const reservation of ordered) {
+        const tableId = reservation.tableId as string;
+        const lockedTable = await tx.$queryRaw<Array<{ id: string }>>`
+          SELECT id FROM tables
+          WHERE id = ${tableId} AND restaurant_id = ${restaurantId}
+          FOR UPDATE
+        `;
+        if (lockedTable.length === 0) {
+          throw new EntityNotFoundException('Table', tableId);
+        }
+      }
+
+      for (const reservation of ordered) {
+        const tableId = reservation.tableId as string;
+        const conflicts = await tx.$queryRaw<Array<{ id: string }>>`
+          SELECT id FROM reservations
+          WHERE table_id = ${tableId}
+            AND status::text IN ('PENDING', 'CONFIRMED', 'SEATED')
+            AND starts_at < ${reservation.endsAt}
+            AND COALESCE(
+                  ends_at,
+                  starts_at
+                    + ${DEFAULT_RESERVATION_DURATION_MINUTES} * interval '1 minute'
+                ) > ${reservation.startsAt}
+          LIMIT 1
+        `;
+        if (conflicts.length > 0) {
+          throw new ConflictException(
+            'One of the tables in the combination is already reserved for the requested time slot'
+          );
+        }
+      }
+
+      const rows: PrismaReservation[] = [];
+      for (const reservation of ordered) {
+        rows.push(
+          await tx.reservation.create({ data: this.toCreateData(reservation) })
+        );
+      }
+      return rows;
+    });
+
+    return created.map((row) => this.toDomain(row));
+  }
+
   async findById(id: string): Promise<Reservation | null> {
     const reservation = await this.prisma.reservation.findUnique({
       where: { id },
     });
 
     return reservation ? this.toDomain(reservation) : null;
+  }
+
+  async findByCombinationId(
+    restaurantId: string,
+    combinationId: string
+  ): Promise<Reservation[]> {
+    const reservations = await this.prisma.reservation.findMany({
+      where: withTenant(restaurantId, { combinationId }),
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return reservations.map((r) => this.toDomain(r));
   }
 
   async findByEmail(
@@ -149,6 +240,7 @@ export class PrismaReservationRepository implements IReservationRepository {
         partySize: reservation.partySize,
         status: this.toPersistenceStatus(reservation.status),
         notes: reservation.notes || null,
+        combinationId: reservation.combinationId || null,
         updatedAt: new Date(),
       },
     });
@@ -179,6 +271,7 @@ export class PrismaReservationRepository implements IReservationRepository {
       partySize: reservation.partySize,
       status: this.toPersistenceStatus(reservation.status),
       notes: reservation.notes || null,
+      combinationId: reservation.combinationId || null,
       createdAt: reservation.createdAt,
       updatedAt: reservation.updatedAt,
     };
@@ -203,6 +296,7 @@ export class PrismaReservationRepository implements IReservationRepository {
       partySize: data.partySize,
       status: ReservationStatus.fromString(data.status),
       notes: data.notes || undefined,
+      combinationId: data.combinationId || undefined,
       createdAt: data.createdAt,
       updatedAt: data.updatedAt,
     });

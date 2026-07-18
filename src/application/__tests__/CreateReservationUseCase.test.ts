@@ -4,6 +4,7 @@ import { IReservationRepository } from '@domain/repositories/IReservationReposit
 import { ITableRepository } from '@domain/repositories/ITableRepository';
 import { IRestaurantRepository } from '@domain/repositories/IRestaurantRepository';
 import { ReservationDomainService } from '@domain/services/ReservationDomainService';
+import { TableCombinationService } from '@domain/services/TableCombinationService';
 import { AvailabilityService } from '@domain/services/AvailabilityService';
 import { Reservation } from '@domain/entities/Reservation';
 import { Restaurant } from '@domain/entities/Restaurant';
@@ -48,6 +49,8 @@ describe('CreateReservationUseCase', () => {
       createWithSlotHold: jest.fn(),
       findById: jest.fn(),
       findByEmail: jest.fn(),
+      createCombinedWithSlotHold: jest.fn(),
+      findByCombinationId: jest.fn(),
       findOverlapping: jest.fn(),
       findAll: jest.fn(),
       update: jest.fn(),
@@ -79,7 +82,8 @@ describe('CreateReservationUseCase', () => {
       mockTableRepo,
       mockRestaurantRepo,
       new ReservationDomainService(),
-      new AvailabilityService()
+      new AvailabilityService(),
+      new TableCombinationService()
     );
   });
 
@@ -262,6 +266,112 @@ describe('CreateReservationUseCase', () => {
       expect(rejected).toHaveLength(1);
       expect(rejected[0].reason).toBeInstanceOf(ConflictException);
       expect(held).toHaveLength(1);
+    });
+  });
+
+  describe('table combination for large parties', () => {
+    const comboTable = (id: string, capacity: number, location: string) =>
+      new Table({
+        id,
+        restaurantId: 'rest-1',
+        tableNumber: Number(id.replace(/\D/g, '')) || 1,
+        capacity,
+        location,
+        status: TableStatus.available(),
+      });
+
+    it('combines adjacent tables when no single table fits, holding them atomically', async () => {
+      // Party of 6; only two 4-tops in the same area — neither fits alone.
+      mockTableRepo.findAvailableTables.mockResolvedValue([
+        comboTable('t-1', 4, 'patio'),
+        comboTable('t-2', 4, 'patio'),
+      ]);
+      // The atomic hold echoes back the rows it was asked to create.
+      mockReservationRepo.createCombinedWithSlotHold.mockImplementation(
+        async (reservations: Reservation[]) => reservations
+      );
+
+      const result = await useCase.execute(
+        { ...validDto, partySize: 6 },
+        tenant
+      );
+
+      // No single-table hold was attempted; the combined hold was.
+      expect(mockReservationRepo.createWithSlotHold).not.toHaveBeenCalled();
+      expect(
+        mockReservationRepo.createCombinedWithSlotHold
+      ).toHaveBeenCalledTimes(1);
+
+      const held = mockReservationRepo.createCombinedWithSlotHold.mock
+        .calls[0][0] as Reservation[];
+      expect(held).toHaveLength(2);
+      // Every row shares one combinationId and covers a distinct table.
+      const combinationIds = new Set(held.map((r) => r.combinationId));
+      expect(combinationIds.size).toBe(1);
+      expect([...combinationIds][0]).toBeTruthy();
+      expect(held.map((r) => r.tableId).sort()).toEqual(['t-1', 't-2']);
+
+      // The response represents the booking with its combinationId.
+      expect(result.combinationId).toBeTruthy();
+      expect(result.partySize).toBe(6);
+    });
+
+    it('prefers a single table and never combines when one already fits', async () => {
+      mockTableRepo.findAvailableTables.mockResolvedValue([
+        comboTable('t-1', 4, 'patio'),
+        comboTable('t-2', 4, 'patio'),
+      ]);
+      mockReservationRepo.createWithSlotHold.mockImplementation(
+        async (r: Reservation) => r
+      );
+
+      const result = await useCase.execute(
+        { ...validDto, partySize: 4 },
+        tenant
+      );
+
+      expect(mockReservationRepo.createWithSlotHold).toHaveBeenCalledTimes(1);
+      expect(
+        mockReservationRepo.createCombinedWithSlotHold
+      ).not.toHaveBeenCalled();
+      expect(result.combinationId).toBeUndefined();
+    });
+
+    it('falls through to the next combination when one loses the race', async () => {
+      // Two independent two-table combinations (one per area).
+      mockTableRepo.findAvailableTables.mockResolvedValue([
+        comboTable('a1', 4, 'A'),
+        comboTable('a2', 4, 'A'),
+        comboTable('b1', 4, 'B'),
+        comboTable('b2', 4, 'B'),
+      ]);
+      mockReservationRepo.createCombinedWithSlotHold
+        .mockRejectedValueOnce(new ConflictException('taken'))
+        .mockImplementationOnce(async (reservations: Reservation[]) => reservations);
+
+      const result = await useCase.execute(
+        { ...validDto, partySize: 8 },
+        tenant
+      );
+
+      expect(
+        mockReservationRepo.createCombinedWithSlotHold
+      ).toHaveBeenCalledTimes(2);
+      expect(result.combinationId).toBeTruthy();
+    });
+
+    it('reports no availability when neither a table nor a combination fits', async () => {
+      // A lone 2-top: cannot seat 8 and cannot be combined with anything.
+      mockTableRepo.findAvailableTables.mockResolvedValue([
+        comboTable('t-1', 2, 'patio'),
+      ]);
+
+      await expect(
+        useCase.execute({ ...validDto, partySize: 8 }, tenant)
+      ).rejects.toThrow(ValidationException);
+      expect(
+        mockReservationRepo.createCombinedWithSlotHold
+      ).not.toHaveBeenCalled();
     });
   });
 });

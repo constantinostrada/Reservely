@@ -19,6 +19,13 @@ export interface ReservationProps {
   partySize: number;
   status: ReservationStatus;
   notes?: string;
+  /**
+   * Groups the reservations that were booked together to seat one large party
+   * across combined (adjacent) tables. Undefined for an ordinary single-table
+   * booking; shared by every row of a combined booking so cancelling one frees
+   * the whole combination.
+   */
+  combinationId?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -126,6 +133,16 @@ export class Reservation {
 
   get notes(): string | undefined {
     return this.props.notes;
+  }
+
+  /** Shared id linking the tables of a combined booking; undefined if single. */
+  get combinationId(): string | undefined {
+    return this.props.combinationId;
+  }
+
+  /** Whether this reservation is one table of a combined (multi-table) booking. */
+  public isCombined(): boolean {
+    return this.props.combinationId != null;
   }
 
   get createdAt(): Date {

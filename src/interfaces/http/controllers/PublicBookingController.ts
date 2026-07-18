@@ -1,6 +1,7 @@
 import { container } from '@infrastructure/di/container';
 import { CreateReservationDTO } from '@application/dtos/ReservationDTO';
 import { GetAvailabilityDTO } from '@application/dtos/AvailabilityDTO';
+import { JoinWaitlistDTO } from '@application/dtos/WaitlistDTO';
 import { TenantContext } from '@application/common/TenantContext';
 
 /**
@@ -30,6 +31,11 @@ export class PublicBookingController {
 
   async reserve(restaurantId: string, dto: CreateReservationDTO) {
     const useCase = container.getCreateReservationUseCase();
+    return await useCase.execute(dto, publicContext(restaurantId));
+  }
+
+  async joinWaitlist(restaurantId: string, dto: JoinWaitlistDTO) {
+    const useCase = container.getJoinWaitlistUseCase();
     return await useCase.execute(dto, publicContext(restaurantId));
   }
 }

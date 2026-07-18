@@ -42,6 +42,15 @@ enum ReservationStatus {
   @@map("reservation_status")
 }
 
+enum WaitlistStatus {
+  WAITING
+  PROMOTED
+  EXPIRED
+  CANCELLED
+
+  @@map("waitlist_status")
+}
+
 enum OrderStatus {
   OPEN
   SUBMITTED
@@ -83,13 +92,14 @@ model Restaurant {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  users        User[]
-  tables       Table[]
-  menuItems    MenuItem[]
-  reservations Reservation[]
-  orders       Order[]
-  orderItems   OrderItem[]
-  payments     Payment[]
+  users           User[]
+  tables          Table[]
+  menuItems       MenuItem[]
+  reservations    Reservation[]
+  orders          Order[]
+  orderItems      OrderItem[]
+  payments        Payment[]
+  waitlistEntries WaitlistEntry[]
 
   @@map("restaurants")
 }
@@ -162,6 +172,8 @@ model Reservation {
   endsAt       DateTime?         @map("ends_at")
   status       ReservationStatus @default(PENDING)
   notes        String?
+  /// links the table rows of one combined (multi-table) booking; null if single
+  combinationId String?          @map("combination_id")
   createdAt    DateTime          @default(now()) @map("created_at")
   updatedAt    DateTime          @updatedAt @map("updated_at")
 
@@ -173,7 +185,35 @@ model Reservation {
   @@index([restaurantId, status])
   @@index([restaurantId, guestEmail])
   @@index([tableId, startsAt])
+  @@index([restaurantId, combinationId])
   @@map("reservations")
+}
+
+/// A guest waiting for a fully-booked slot. When a reservation on the same slot
+/// is cancelled, the oldest WAITING entry that fits the freed table is promoted
+/// into a confirmed reservation. Entries EXPIRE once their slot start passes.
+model WaitlistEntry {
+  id            String         @id @default(cuid())
+  restaurantId  String         @map("restaurant_id")
+  guestName     String         @map("guest_name")
+  guestEmail    String         @map("guest_email")
+  guestPhone    String?        @map("guest_phone")
+  partySize     Int            @map("party_size")
+  startsAt      DateTime       @map("starts_at")
+  endsAt        DateTime       @map("ends_at")
+  status        WaitlistStatus @default(WAITING)
+  /// set when promoted: the reservation created for this guest
+  promotedReservationId String? @map("promoted_reservation_id")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  // Promotion selects the oldest WAITING entry for a (restaurant, slot); this
+  // index serves both that ordered scan and the expiry sweep.
+  @@index([restaurantId, startsAt, status])
+  @@index([restaurantId, status])
+  @@map("waitlist_entries")
 }
 
 model Order {

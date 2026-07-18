@@ -10,11 +10,27 @@ export interface IReservationRepository {
    */
   createWithSlotHold(reservation: Reservation): Promise<Reservation>;
   /**
+   * Atomically hold several tables for one large party. All reservations share
+   * one combinationId, slot and guest, one per table. Implementations must lock
+   * every table and re-check every slot inside a single transaction: if ANY
+   * table is already taken the whole hold rolls back (no partial hold), so of
+   * two combined holds sharing a table at most one succeeds. Each reservation
+   * must carry a tableId. Returns the created rows.
+   */
+  createCombinedWithSlotHold(
+    reservations: Reservation[]
+  ): Promise<Reservation[]>;
+  /**
    * Not tenant-scoped on purpose: callers must check the entity's
    * restaurantId against the current tenant (see assertSameTenant) so
    * cross-tenant access can be rejected with 403 instead of 404.
    */
   findById(id: string): Promise<Reservation | null>;
+  /** Every reservation row of a combined booking, oldest first. */
+  findByCombinationId(
+    restaurantId: string,
+    combinationId: string
+  ): Promise<Reservation[]>;
   findByEmail(restaurantId: string, email: string): Promise<Reservation[]>;
   /**
    * Reservations whose [startsAt, endsAt) slot intersects the given UTC

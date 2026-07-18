@@ -4,6 +4,7 @@ import { IReservationRepository } from '@domain/repositories/IReservationReposit
 import { ITableRepository } from '@domain/repositories/ITableRepository';
 import { IRestaurantRepository } from '@domain/repositories/IRestaurantRepository';
 import { AvailabilityService } from '@domain/services/AvailabilityService';
+import { TableCombinationService } from '@domain/services/TableCombinationService';
 import { Reservation } from '@domain/entities/Reservation';
 import { Restaurant } from '@domain/entities/Restaurant';
 import { Table } from '@domain/entities/Table';
@@ -46,6 +47,8 @@ describe('GetAvailabilityUseCase', () => {
       createWithSlotHold: jest.fn(),
       findById: jest.fn(),
       findByEmail: jest.fn(),
+      createCombinedWithSlotHold: jest.fn(),
+      findByCombinationId: jest.fn(),
       findOverlapping: jest.fn().mockResolvedValue([]),
       findAll: jest.fn(),
       update: jest.fn(),
@@ -76,7 +79,8 @@ describe('GetAvailabilityUseCase', () => {
       mockReservationRepo,
       mockTableRepo,
       mockRestaurantRepo,
-      new AvailabilityService()
+      new AvailabilityService(),
+      new TableCombinationService()
     );
   });
 

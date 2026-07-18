@@ -84,6 +84,8 @@ describe('InProcessEventDispatcher', () => {
       createWithSlotHold: jest.fn(),
       findById: jest.fn().mockResolvedValue(reservation),
       findByEmail: jest.fn(),
+      createCombinedWithSlotHold: jest.fn(),
+      findByCombinationId: jest.fn(),
       findOverlapping: jest.fn(),
       findAll: jest.fn(),
       update: jest.fn().mockImplementation(async (r) => r),

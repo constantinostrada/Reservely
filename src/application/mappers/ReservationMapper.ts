@@ -17,6 +17,7 @@ export class ReservationMapper {
       partySize: reservation.partySize,
       status: reservation.status.value,
       notes: reservation.notes,
+      combinationId: reservation.combinationId,
       createdAt: reservation.createdAt.toISOString(),
       updatedAt: reservation.updatedAt.toISOString(),
     };
@@ -31,7 +32,8 @@ export class ReservationMapper {
     restaurantId: string,
     tableId: string,
     startsAt: Date,
-    endsAt: Date
+    endsAt: Date,
+    combinationId?: string
   ): Reservation {
     return new Reservation({
       restaurantId,
@@ -44,6 +46,7 @@ export class ReservationMapper {
       partySize: dto.partySize,
       status: ReservationStatus.pending(),
       notes: dto.notes,
+      combinationId,
     });
   }
 

@@ -7,6 +7,7 @@ import {
   CLOSING_TIME,
 } from '@domain/services/AvailabilityService';
 import { ReservationDomainService } from '@domain/services/ReservationDomainService';
+import { TableCombinationService } from '@domain/services/TableCombinationService';
 import { DEFAULT_RESERVATION_DURATION_MINUTES } from '@domain/entities/Reservation';
 import { TimeSlot } from '@domain/value-objects/TimeSlot';
 import {
@@ -25,7 +26,8 @@ export class CreateReservationUseCase {
     private readonly tableRepository: ITableRepository,
     private readonly restaurantRepository: IRestaurantRepository,
     private readonly domainService: ReservationDomainService,
-    private readonly availabilityService: AvailabilityService
+    private readonly availabilityService: AvailabilityService,
+    private readonly combinationService: TableCombinationService
   ) {}
 
   async execute(
@@ -70,17 +72,18 @@ export class CreateReservationUseCase {
         )
       : this.domainService.findSuitableTables(dto.partySize, availableTables);
 
-    if (candidateTables.length === 0) {
+    // A pinned table that can't seat the party fails immediately — the guest
+    // asked for that specific table. Combinations are only auto-assigned.
+    if (candidateTables.length === 0 && dto.tableId) {
       throw new ValidationException(
-        dto.tableId
-          ? `Table ${dto.tableId} is not available for a party of ${dto.partySize}`
-          : `No tables available to accommodate a party of ${dto.partySize}`
+        `Table ${dto.tableId} is not available for a party of ${dto.partySize}`
       );
     }
 
-    // Try to place a transactional hold. The repository guarantees that of
-    // two concurrent holds on the same table/slot exactly one succeeds; when
-    // the guest didn't pin a table, fall through to the next suitable one.
+    // Try to place a transactional hold on a single table. The repository
+    // guarantees that of two concurrent holds on the same table/slot exactly
+    // one succeeds; when the guest didn't pin a table, fall through to the
+    // next suitable one.
     for (const table of candidateTables) {
       const reservation = ReservationMapper.toDomain(
         dto,
@@ -101,8 +104,59 @@ export class CreateReservationUseCase {
       }
     }
 
+    // No single table fits (party too large, or every suitable one was taken):
+    // fall back to combining adjacent tables. All tables are held atomically —
+    // if any is taken the whole hold rolls back, so we try the next candidate.
+    if (!dto.tableId) {
+      const combinations = this.combinationService.findCombinations(
+        availableTables,
+        dto.partySize
+      );
+
+      for (const combination of combinations) {
+        const combinationId = this.generateCombinationId();
+        const reservations = combination.map((table) =>
+          ReservationMapper.toDomain(
+            dto,
+            context.restaurantId,
+            table.id,
+            slot.start,
+            slot.end,
+            combinationId
+          )
+        );
+        try {
+          const saved =
+            await this.reservationRepository.createCombinedWithSlotHold(
+              reservations
+            );
+          // The primary row (first table) represents the booking; it carries
+          // the combinationId that links the rest.
+          return ReservationMapper.toDTO(saved[0]);
+        } catch (error) {
+          if (error instanceof ConflictException) {
+            continue;
+          }
+          throw error;
+        }
+      }
+
+      // Nothing single-table and nothing to combine: the party simply can't be
+      // seated at this restaurant for this slot.
+      if (candidateTables.length === 0 && combinations.length === 0) {
+        throw new ValidationException(
+          `No tables available to accommodate a party of ${dto.partySize}`
+        );
+      }
+    }
+
     throw new ConflictException(
       'This time slot conflicts with an existing reservation'
     );
+  }
+
+  /** Shared id linking every table row of one combined booking. */
+  private generateCombinationId(): string {
+    return `comb-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
   }
 }

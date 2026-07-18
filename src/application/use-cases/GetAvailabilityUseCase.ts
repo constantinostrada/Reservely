@@ -6,6 +6,7 @@ import {
   OPENING_TIME,
   CLOSING_TIME,
 } from '@domain/services/AvailabilityService';
+import { TableCombinationService } from '@domain/services/TableCombinationService';
 import { DEFAULT_RESERVATION_DURATION_MINUTES } from '@domain/entities/Reservation';
 import { EntityNotFoundException } from '@domain/exceptions/DomainException';
 import { TenantContext } from '../common/TenantContext';
@@ -17,7 +18,8 @@ export class GetAvailabilityUseCase {
     private readonly reservationRepository: IReservationRepository,
     private readonly tableRepository: ITableRepository,
     private readonly restaurantRepository: IRestaurantRepository,
-    private readonly availabilityService: AvailabilityService
+    private readonly availabilityService: AvailabilityService,
+    private readonly combinationService: TableCombinationService
   ) {}
 
   async execute(
@@ -57,6 +59,16 @@ export class GetAvailabilityUseCase {
       DEFAULT_RESERVATION_DURATION_MINUTES
     );
 
+    // Slots that only a combination of adjacent tables can serve (large party).
+    const combinationSlots = this.availabilityService.computeCombinationSlots(
+      tables,
+      reservations,
+      serviceWindow,
+      dto.partySize,
+      DEFAULT_RESERVATION_DURATION_MINUTES,
+      this.combinationService
+    );
+
     return {
       restaurantId: restaurant.id,
       date: dto.date,
@@ -71,6 +83,17 @@ export class GetAvailabilityUseCase {
         freeSlots: freeSlots.map((slot) => ({
           startsAt: slot.start.toISOString(),
           endsAt: slot.end.toISOString(),
+        })),
+      })),
+      combinations: combinationSlots.map(({ slot, tables: comboTables }) => ({
+        startsAt: slot.start.toISOString(),
+        endsAt: slot.end.toISOString(),
+        totalCapacity: this.combinationService.totalCapacity(comboTables),
+        tables: comboTables.map((table) => ({
+          tableId: table.id,
+          tableNumber: table.tableNumber,
+          capacity: table.capacity,
+          location: table.location,
         })),
       })),
     };

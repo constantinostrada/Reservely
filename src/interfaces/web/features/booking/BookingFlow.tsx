@@ -350,22 +350,32 @@ export function BookingFlow({
   );
 }
 
-/** Aggregate free slots across all tables into distinct start times. */
+/**
+ * Aggregate free slots into distinct start times. Includes both single-table
+ * slots and combination slots (large parties seated by pushing adjacent tables
+ * together) — the backend holds the whole combination atomically at booking.
+ */
 function toSlots(availability: AvailabilityDTO | undefined): Slot[] {
   if (!availability) {
     return [];
   }
   const byStart = new Map<string, Slot>();
+  const add = (startsAt: string): void => {
+    if (!byStart.has(startsAt)) {
+      byStart.set(startsAt, {
+        startsAt,
+        time: localTimeValue(startsAt, availability.timezone),
+        label: localTimeLabel(startsAt, availability.timezone),
+      });
+    }
+  };
   for (const table of availability.tables) {
     for (const slot of table.freeSlots) {
-      if (!byStart.has(slot.startsAt)) {
-        byStart.set(slot.startsAt, {
-          startsAt: slot.startsAt,
-          time: localTimeValue(slot.startsAt, availability.timezone),
-          label: localTimeLabel(slot.startsAt, availability.timezone),
-        });
-      }
+      add(slot.startsAt);
     }
+  }
+  for (const combination of availability.combinations) {
+    add(combination.startsAt);
   }
   return [...byStart.values()].sort((a, b) =>
     a.startsAt.localeCompare(b.startsAt)

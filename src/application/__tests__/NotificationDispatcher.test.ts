@@ -6,6 +6,7 @@ import {
 import {
   PaymentSucceededEvent,
   ReservationConfirmedEvent,
+  WaitlistPromotedEvent,
 } from '@domain/events/DomainEvent';
 import { IOrderRepository } from '@domain/repositories/IOrderRepository';
 import { IReservationRepository } from '@domain/repositories/IReservationRepository';
@@ -76,6 +77,18 @@ describe('NotificationDispatcher', () => {
     amountCents: 3300,
   };
 
+  const waitlistPromotedEvent: WaitlistPromotedEvent = {
+    type: 'waitlist.promoted',
+    occurredAt: new Date(),
+    waitlistEntryId: 'wl-1',
+    reservationId: 'res-2',
+    restaurantId: 'rest-1',
+    guestName: 'Grace Hopper',
+    guestEmail: 'grace@example.com',
+    startsAt: new Date('2026-12-25T23:30:00.000Z'),
+    partySize: 2,
+  };
+
   beforeEach(() => {
     sender = new RecordingSender();
     orderRepo = {
@@ -89,6 +102,8 @@ describe('NotificationDispatcher', () => {
       createWithSlotHold: jest.fn(),
       findById: jest.fn(),
       findByEmail: jest.fn(),
+      createCombinedWithSlotHold: jest.fn(),
+      findByCombinationId: jest.fn(),
       findOverlapping: jest.fn(),
       findAll: jest.fn(),
       update: jest.fn(),
@@ -157,6 +172,33 @@ describe('NotificationDispatcher', () => {
       await dispatcher.handle(paymentEvent);
 
       expect(sender.sent).toHaveLength(0);
+    });
+  });
+
+  describe('waitlist.promoted', () => {
+    it('emails the promoted guest that their spot opened up', async () => {
+      await dispatcher.handle(waitlistPromotedEvent);
+
+      expect(sender.sent).toHaveLength(1);
+      expect(sender.sent[0]).toMatchObject({
+        channel: 'email',
+        to: 'grace@example.com',
+      });
+      expect(sender.sent[0].body).toContain('Grace Hopper');
+      expect(sender.sent[0].body).toContain('confirmed reservation');
+    });
+
+    it('also texts the promoted guest when a phone number is on file', async () => {
+      await dispatcher.handle({
+        ...waitlistPromotedEvent,
+        guestPhone: '+15550002222',
+      });
+
+      expect(sender.sent).toHaveLength(2);
+      expect(sender.sent[1]).toMatchObject({
+        channel: 'sms',
+        to: '+15550002222',
+      });
     });
   });
 });

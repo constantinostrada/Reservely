@@ -9,7 +9,9 @@ import { PrismaUserRepository } from '../repositories/PrismaUserRepository';
 import { PrismaMenuItemRepository } from '../repositories/PrismaMenuItemRepository';
 import { PrismaOrderRepository } from '../repositories/PrismaOrderRepository';
 import { PrismaPaymentRepository } from '../repositories/PrismaPaymentRepository';
+import { PrismaWaitlistRepository } from '../repositories/PrismaWaitlistRepository';
 import { IReservationRepository } from '@domain/repositories/IReservationRepository';
+import { IWaitlistRepository } from '@domain/repositories/IWaitlistRepository';
 import { IRestaurantRepository } from '@domain/repositories/IRestaurantRepository';
 import { ITableRepository } from '@domain/repositories/ITableRepository';
 import { IUserRepository } from '@domain/repositories/IUserRepository';
@@ -37,6 +39,7 @@ import { IPasswordHasher } from '@application/ports/IPasswordHasher';
 // Domain Services
 import { ReservationDomainService } from '@domain/services/ReservationDomainService';
 import { AvailabilityService } from '@domain/services/AvailabilityService';
+import { TableCombinationService } from '@domain/services/TableCombinationService';
 import { BillSplitService } from '@domain/services/BillSplitService';
 
 // Use Cases
@@ -46,6 +49,9 @@ import { GetReservationUseCase } from '@application/use-cases/GetReservationUseC
 import { ListReservationsUseCase } from '@application/use-cases/ListReservationsUseCase';
 import { ConfirmReservationUseCase } from '@application/use-cases/ConfirmReservationUseCase';
 import { CancelReservationUseCase } from '@application/use-cases/CancelReservationUseCase';
+import { JoinWaitlistUseCase } from '@application/use-cases/JoinWaitlistUseCase';
+import { ListWaitlistUseCase } from '@application/use-cases/ListWaitlistUseCase';
+import { CleanupExpiredWaitlistUseCase } from '@application/use-cases/CleanupExpiredWaitlistUseCase';
 import { CreateTableUseCase } from '@application/use-cases/CreateTableUseCase';
 import { GetTableUseCase } from '@application/use-cases/GetTableUseCase';
 import { ListTablesUseCase } from '@application/use-cases/ListTablesUseCase';
@@ -84,6 +90,7 @@ class Container {
   private static instance: Container;
   private prismaClient: PrismaClient;
   private reservationRepo?: IReservationRepository;
+  private waitlistRepo?: IWaitlistRepository;
   private restaurantRepo?: IRestaurantRepository;
   private tableRepo?: ITableRepository;
   private userRepo?: IUserRepository;
@@ -97,6 +104,7 @@ class Container {
   private passwordHasher?: IPasswordHasher;
   private reservationDomainService?: ReservationDomainService;
   private availabilityService?: AvailabilityService;
+  private tableCombinationService?: TableCombinationService;
   private billSplitService?: BillSplitService;
 
   private constructor() {
@@ -116,6 +124,13 @@ class Container {
       this.reservationRepo = new PrismaReservationRepository(this.prismaClient);
     }
     return this.reservationRepo;
+  }
+
+  public getWaitlistRepository(): IWaitlistRepository {
+    if (!this.waitlistRepo) {
+      this.waitlistRepo = new PrismaWaitlistRepository(this.prismaClient);
+    }
+    return this.waitlistRepo;
   }
 
   public getRestaurantRepository(): IRestaurantRepository {
@@ -232,6 +247,13 @@ class Container {
     return this.availabilityService;
   }
 
+  public getTableCombinationService(): TableCombinationService {
+    if (!this.tableCombinationService) {
+      this.tableCombinationService = new TableCombinationService();
+    }
+    return this.tableCombinationService;
+  }
+
   public getBillSplitService(): BillSplitService {
     if (!this.billSplitService) {
       this.billSplitService = new BillSplitService();
@@ -246,7 +268,8 @@ class Container {
       this.getTableRepository(),
       this.getRestaurantRepository(),
       this.getReservationDomainService(),
-      this.getAvailabilityService()
+      this.getAvailabilityService(),
+      this.getTableCombinationService()
     );
   }
 
@@ -255,7 +278,8 @@ class Container {
       this.getReservationRepository(),
       this.getTableRepository(),
       this.getRestaurantRepository(),
-      this.getAvailabilityService()
+      this.getAvailabilityService(),
+      this.getTableCombinationService()
     );
   }
 
@@ -275,7 +299,29 @@ class Container {
   }
 
   public getCancelReservationUseCase(): CancelReservationUseCase {
-    return new CancelReservationUseCase(this.getReservationRepository());
+    return new CancelReservationUseCase(
+      this.getReservationRepository(),
+      this.getWaitlistRepository(),
+      this.getEventPublisher()
+    );
+  }
+
+  public getJoinWaitlistUseCase(): JoinWaitlistUseCase {
+    return new JoinWaitlistUseCase(
+      this.getWaitlistRepository(),
+      this.getReservationRepository(),
+      this.getTableRepository(),
+      this.getRestaurantRepository(),
+      this.getAvailabilityService()
+    );
+  }
+
+  public getListWaitlistUseCase(): ListWaitlistUseCase {
+    return new ListWaitlistUseCase(this.getWaitlistRepository());
+  }
+
+  public getCleanupExpiredWaitlistUseCase(): CleanupExpiredWaitlistUseCase {
+    return new CleanupExpiredWaitlistUseCase(this.getWaitlistRepository());
   }
 
   public getCreateTableUseCase(): CreateTableUseCase {

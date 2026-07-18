@@ -1,4 +1,5 @@
 import { AvailabilityService } from '../services/AvailabilityService';
+import { TableCombinationService } from '../services/TableCombinationService';
 import { Reservation } from '../entities/Reservation';
 import { Table } from '../entities/Table';
 import { TimeSlot } from '../value-objects/TimeSlot';
@@ -11,12 +12,18 @@ const at = (iso: string) => new Date(iso);
 // A UTC service window equivalent to 11:00–22:00 local in a UTC restaurant
 const window = new TimeSlot(at('2026-07-16T11:00:00Z'), at('2026-07-16T22:00:00Z'));
 
-const makeTable = (id: string, capacity: number, status = TableStatus.available()) =>
+const makeTable = (
+  id: string,
+  capacity: number,
+  status = TableStatus.available(),
+  location?: string
+) =>
   new Table({
     id,
     restaurantId: 'rest-1',
     tableNumber: Number(id.replace(/\D/g, '')) || 1,
     capacity,
+    location,
     status,
   });
 
@@ -142,6 +149,74 @@ describe('AvailabilityService', () => {
       const tooLate = TimeSlot.fromDuration(at('2026-07-16T21:00:00Z'), 90);
       expect(service.isWithinServiceWindow(ok, window)).toBe(true);
       expect(service.isWithinServiceWindow(tooLate, window)).toBe(false);
+    });
+  });
+
+  describe('computeCombinationSlots', () => {
+    const combinationService = new TableCombinationService();
+
+    it('offers combination slots when no single table seats the large party', () => {
+      // Two 4-tops in the same area; a party of 8 needs both.
+      const tables = [
+        makeTable('t-1', 4, TableStatus.available(), 'patio'),
+        makeTable('t-2', 4, TableStatus.available(), 'patio'),
+      ];
+
+      const result = service.computeCombinationSlots(
+        tables,
+        [],
+        window,
+        8,
+        90,
+        combinationService
+      );
+
+      // Every candidate slot in the window is combinable (nothing booked).
+      expect(result).toHaveLength(20);
+      for (const offer of result) {
+        expect(offer.tables.map((t) => t.id).sort()).toEqual(['t-1', 't-2']);
+      }
+    });
+
+    it('omits slots a single table can already serve', () => {
+      // A lone 8-top seats the party of 8 → no combination needed anywhere.
+      const tables = [makeTable('t-1', 8, TableStatus.available(), 'patio')];
+
+      const result = service.computeCombinationSlots(
+        tables,
+        [],
+        window,
+        8,
+        90,
+        combinationService
+      );
+
+      expect(result).toHaveLength(0);
+    });
+
+    it('drops the combination for slots where a member table is booked', () => {
+      const tables = [
+        makeTable('t-1', 4, TableStatus.available(), 'patio'),
+        makeTable('t-2', 4, TableStatus.available(), 'patio'),
+      ];
+      // t-1 booked 18:00–19:30; the combination cannot form for those slots.
+      const reservations = [makeReservation('t-1', '2026-07-16T18:00:00Z')];
+
+      const result = service.computeCombinationSlots(
+        tables,
+        reservations,
+        window,
+        8,
+        90,
+        combinationService
+      );
+
+      const starts = result.map((o) => o.slot.start.toISOString());
+      // 5 overlapping starts (17:00–19:00) lose the combination → 20 - 5 = 15.
+      expect(result).toHaveLength(15);
+      expect(starts).not.toContain('2026-07-16T18:00:00.000Z');
+      expect(starts).toContain('2026-07-16T16:30:00.000Z');
+      expect(starts).toContain('2026-07-16T19:30:00.000Z');
     });
   });
 });

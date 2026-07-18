@@ -2,6 +2,7 @@ import {
   PaymentSucceededEvent,
   ReservationConfirmedEvent,
   ReservelyDomainEvent,
+  WaitlistPromotedEvent,
 } from '@domain/events/DomainEvent';
 import { IOrderRepository } from '@domain/repositories/IOrderRepository';
 import { IReservationRepository } from '@domain/repositories/IReservationRepository';
@@ -30,6 +31,33 @@ export class NotificationDispatcher {
       case 'payment.succeeded':
         await this.notifyPaymentSucceeded(event);
         break;
+      case 'waitlist.promoted':
+        await this.notifyWaitlistPromoted(event);
+        break;
+    }
+  }
+
+  private async notifyWaitlistPromoted(
+    event: WaitlistPromotedEvent
+  ): Promise<void> {
+    const when = event.startsAt.toISOString();
+    const body =
+      `Good news ${event.guestName}! A spot opened up and your waitlist ` +
+      `request for ${event.partySize} on ${when} is now a confirmed reservation.`;
+
+    await this.sender.send({
+      channel: 'email',
+      to: event.guestEmail,
+      subject: 'You’re off the waitlist — reservation confirmed',
+      body,
+    });
+
+    if (event.guestPhone) {
+      await this.sender.send({
+        channel: 'sms',
+        to: event.guestPhone,
+        body,
+      });
     }
   }
 

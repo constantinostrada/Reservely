@@ -35,6 +35,8 @@ export interface ReservationDTO {
   partySize: number;
   status: string;
   notes?: string;
+  /** Present when this row is one table of a combined (multi-table) booking. */
+  combinationId?: string;
   createdAt: string;
   updatedAt: string;
 }
